@@ -20,7 +20,6 @@ function scriptsLoaded()
 
 function callbackjQuery()
 {
-    debugger;
     jQuery.when.apply(jQuery, jQuery.map(scripts, jQuery.getScript)).done(scriptsLoaded);
 
 }
