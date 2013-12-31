@@ -11,24 +11,6 @@ var scripts = [
     "http://dougbeal.github.io/feedlyconsole/javascripts/example.js"
 ];
 
-function executeFromConsole()
-{
-    // Adding the script tag to the head as suggested before
-    var head = document.getElementsByTagName('head')[0];
-    var script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src = "file:///Users/dougbeal/git/feedlyconsole/feedlyconsole.js";
-
-    // Then bind the event to the callback function.
-    // There are several events for cross browser compatibility.
-    script.onreadystatechange = function() { window.console.log("feedlyconsole.js loaded"); alert("feedlyconsole.js loaded"); };
-    script.onload = script.onreadystatechange;
-
-    // Fire the loading
-    head.appendChild(script);
-}
-
-
 
 function scriptsLoaded()
 { 
