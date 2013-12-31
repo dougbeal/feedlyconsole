@@ -3,12 +3,12 @@ var jquery = "http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.js";
 var scripts = [ 
     "http://ajax.googleapis.com/ajax/libs/jqueryui/1.9.2/jquery-ui.min.js",
     "http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.2/underscore-min.js",
-    "http://dougbeal.github.io/feedlyconsole/javascripts/killring.js",
-    "http://dougbeal.github.io/feedlyconsole/javascripts/history.js",
-    "http://dougbeal.github.io/feedlyconsole/javascripts/readline.js",
-    "http://dougbeal.github.io/feedlyconsole/javascripts/shell.js",
-    "http://dougbeal.github.io/feedlyconsole/javascripts/pathhandler.js",
-    "http://dougbeal.github.io/feedlyconsole/javascripts/example.js"
+    "http://dougbeal.github.io/feedlyconsole/josh.js/js/killring.js",
+    "http://dougbeal.github.io/feedlyconsole/josh.js/js/history.js",
+    "http://dougbeal.github.io/feedlyconsole/josh.js/js/readline.js",
+    "http://dougbeal.github.io/feedlyconsole/josh.js/js/shell.js",
+    "http://dougbeal.github.io/feedlyconsole/josh.js/js/pathhandler.js",
+    "http://dougbeal.github.io/feedlyconsole/josh.js/js/example.js"
 ];
 
 
@@ -21,7 +21,7 @@ function scriptsLoaded()
 function callbackjQuery()
 {
     debugger;
-    jQuery.when.apply(jQuery.getScript, scripts).done(scriptsLoaded);
+    jQuery.when.apply(jQuery, jQuery.map(scripts, jQuery.getScript)).done(scriptsLoaded);
 
 }
 
