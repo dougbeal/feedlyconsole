@@ -658,7 +658,7 @@ function loadScripts()
         return css_template.replace( '{url}', url ); }
               );
         
-    jQuery.map(links, jQuery.("head").append);
+    jQuery.map(links, jQuery("head").append);
     jQuery.when.apply(jQuery, jQuery.map(scripts, jQuery.getScript)).done(initializeConsole);
 
 }
