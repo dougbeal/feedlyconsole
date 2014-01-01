@@ -8,8 +8,8 @@ var scripts = [
     "http://dougbeal.github.io/feedlyconsole/josh.js/js/history.js",
     "http://dougbeal.github.io/feedlyconsole/josh.js/js/readline.js",
     "http://dougbeal.github.io/feedlyconsole/josh.js/js/shell.js",
-    "http://dougbeal.github.io/feedlyconsole/josh.js/js/pathhandler.js",
-    "http://dougbeal.github.io/feedlyconsole/josh.js/js/example.js"
+    "http://dougbeal.github.io/feedlyconsole/josh.js/js/pathhandler.js"
+//    "http://dougbeal.github.io/feedlyconsole/josh.js/js/example.js"
 ];
 var css = [ 
     "http://dougbeal.github.io/feedlyconsole/stylesheets/feedlyconsole.css"
@@ -632,7 +632,7 @@ function initializeConsole()
                         event.preventDefault();
                         activateAndShow();
                     }
-                });
+                }));
                 function activateAndShow() {
                     $consoletab.slideUp();
                     _self.shell.activate();
