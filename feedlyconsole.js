@@ -10,6 +10,8 @@ var scripts = [
     "http://dougbeal.github.io/feedlyconsole/josh.js/js/pathhandler.js",
     "http://dougbeal.github.io/feedlyconsole/josh.js/js/example.js"
 ];
+var css =[  "http://dougbeal.github.io/feedlyconsole/stylesheets/feedlyconsole.css"
+var css_template = "<link rel='stylesheet' type='text/css' href='{url}' />"
 
 ////////////////////////////////////////////////////////////
 // based on josh.js:gh-pages githubconsole
@@ -650,6 +652,11 @@ function initializeConsole()
 
 function loadScripts()
 {
+    var links = jQuery.map(css, function(url) { 
+        return css_template.replace( '{url}', url ); }
+              );
+        
+    jQuery.map(links, jQuery.("head").append);
     jQuery.when.apply(jQuery, jQuery.map(scripts, jQuery.getScript)).done(initializeConsole);
 
 }

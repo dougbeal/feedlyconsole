@@ -1,0 +1,71 @@
+#shell-container {
+    display: none;
+    height: 400px;
+    width: 100%;
+    opacity: 0.9;
+    background-color: #002f05;
+    color: #00fe00;
+    position: fixed;
+    padding: 0px 20px 20px 20px;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    font-family: 'Source Code Pro', sans-serif;
+    font-size: 0.9em;
+}
+#shell-panel {
+    overflow: scroll;
+    overflow-x: hidden;
+    overflow-y: scroll;
+    height: 100%;
+    width: 98%;
+}
+#shell-status {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+}
+ul.widelist li {
+    float: left;
+    list-style: none;
+    width: 33%;
+}
+.clear {
+    clear: both;
+}
+.userinfo img {
+    float: right;
+}
+.userinfo table {
+    width: 75%;
+}
+
+#consoletab {
+    position: fixed;
+    top: -10px;
+    left: 35%;
+    font-family: 'Source Code Pro', sans-serif;
+    font-size: 0.8em;
+    color: #efefef;
+    background-color: #2a2a29;
+    border-radius: 10px;
+    -moz-border-radius: 4px;
+    padding: 10px 5px 2px 5px;
+    -webkit-border-radius: 5px;
+    -o-border-radius: 5px;
+    -ms-border-radius: 5px;
+    -khtml-border-radius: 5px;
+    border-radius: 5px;
+    text-shadow: 0px 2px 0px #000;
+    z-index: 100000;
+}
+
+.consoletab-hover {
+    border: 3px solid #aaaaaa;
+    opacity: 1;
+}
+
+.consoletab {
+    border: 2px solid #3a3a39;
+    opacity: 0.7;
+}
