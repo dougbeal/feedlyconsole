@@ -21,7 +21,8 @@ function initializeConsole()
 { 
     window.console.log("scripts loaded, feedlyconsole.js complete");
     window.console.log(jQuery('head'));
-    jQuery('body')('#shell-container').add(
+    if( jQuery('#shell-container').length == 0 ) {
+        jQuery('body').append( jQuery(
 '<div id="consoletab" class="consoletab" style="display: block;">' +
 'Click or type <code>~</code> to show Console</div>' +
 '<div id="shell-container">' +
@@ -32,7 +33,8 @@ function initializeConsole()
 '    </div>' +
 '    <div id="shell-view"></div>' +
 '  </div>' +
-'</div>');
+'</div>'));
+    }
     ////////////////////////////////////////////////////////////
     // based on josh.js:gh-pages githubconsole
     (function(root, jQuery, _) {
@@ -302,7 +304,7 @@ function initializeConsole()
                 });
                 var absolute = resolved.join('/');
                 _console.log("path to fetch: " + absolute);
-                return getDir(_self.repo.full_name, _self.branch, absolute, callback);
+                return getDir(absolute, callback);
             };
 
             //<section id='getChildNodes'/>
@@ -424,23 +426,20 @@ function initializeConsole()
                 });
             }
 
-            //<section id='initializeRepos'/>
+            //<section id='initialize'/>
 
-            // initalizeRepos
+            // initalize
             // --------------
 
-            // This function first fetches all repos for the given user from the API and then sets the current repo to the provided
-            // value (which may be null).
-            function initializeRepos(user, repo_name, err, callback) {
-                return getRepos(user.login, function(repos) {
-                    var repo = getRepo(repo_name, repos);
-                    if(!repo) {
-                        return err("user has no repositories");
+            // This function sets the node
+            function initialize(err, callback) {
+                return getDir("/",  function(node) {
+                    if(!node) {
+                        return err("could not initialize root directory of repository '" + repo.full_name + "'");
                     }
-                    return setRepo(repo, err, function(repo) {
-                        _self.repos = repos;
-                        return callback(repo);
-                    });
+                    _self.pathhandler.current = node;
+                    _self.root = node;
+                    return callback(node);
                 });
             }
 
@@ -450,34 +449,48 @@ function initializeConsole()
             // ------
 
             // This function function fetches the directory listing for a path on a given repo and branch.
-            function getDir(repo_full_name, branch, path, callback) {
+            function getDir(path, callback) {
 
                 // Although paths in the internal representation may have a trailing `/`, it has to be removed before using it
                 // as the argument for an API request.
                 if(path && path.length > 1 && path[path.length - 1] === '/') {
                     path = path.substr(0, path.length - 1);
                 }
-                get("repos/" + repo_full_name + "/contents" + path, {ref: branch}, function(data) {
 
-                    // The API call may return either an array, indicating that the path was a directory, or an object. Since only
-                    // are stored as pathnodes, retrieving anything but an array returns null via the callback.
-                    if(Object.prototype.toString.call(data) !== '[object Array]') {
-                        _console.log("path '" + path + "' was a file");
-                        return callback();
-                    }
-
-                    // Given a directory listing, i.e. array, the current directory node is created and the API return value captured
-                    // as children so that they can later be transformed into child pathnodes, if required.
+                if(path && path.length == 1 && path === '/') {
+                    // root, each command is a path
                     var node = {
                         name: _.last(_.filter(path.split("/"), function(x) {
                             return x;
                         })) || "",
                         path: path,
-                        children: data
+                        children: {}
                     };
                     _console.log("got node at: " + node.path);
                     return callback(node);
-                });
+                } else {
+                    get("repos/" + repo_full_name + "/contents" + path, {ref: branch}, function(data) {
+
+                        // The API call may return either an array, indicating that the path was a directory, or an object. Since only
+                        // are stored as pathnodes, retrieving anything but an array returns null via the callback.
+                        if(Object.prototype.toString.call(data) !== '[object Array]') {
+                            _console.log("path '" + path + "' was a file");
+                            return callback();
+                        }
+
+                        // Given a directory listing, i.e. array, the current directory node is created and the API return value captured
+                        // as children so that they can later be transformed into child pathnodes, if required.
+                        var node = {
+                            name: _.last(_.filter(path.split("/"), function(x) {
+                                return x;
+                            })) || "",
+                            path: path,
+                            children: data
+                        };
+                        _console.log("got node at: " + node.path);
+                        return callback(node);
+                    });
+                }
             }
 
             //<section id='getRepos'/>
@@ -641,12 +654,7 @@ function initializeConsole()
 
             // On document ready, the default user and repo are loaded from the API before the UI can complete initialization.
             jQuery(document).ready(function() {
-                setUser("sdether", "josh.js",
-                        function(msg) {
-                            initializationError("default", msg);
-                        },
-                        initializeUI
-                       );
+                initialize(function() {}, initializeUI)
             });
         })(root, jQuery, _);
     })
@@ -657,9 +665,8 @@ function loadScripts()
 {
     var links = jQuery.map(css, function(url) { 
         return css_template.replace( '{url}', url ); }
-              );
-        
-    jQuery.map(links, jQuery("head").append);
+              ).join();
+    jQuery("head").append(links);
     jQuery.when.apply(jQuery, jQuery.map(scripts, jQuery.getScript)).done(initializeConsole);
 
 }
