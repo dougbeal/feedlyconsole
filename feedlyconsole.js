@@ -624,7 +624,7 @@ function initializeConsole()
 
                 var $consolePanel = jQuery('#shell-container');
                 $consolePanel.resizable({ handles: "s"});
-                jQuery(document).keypress(function(event) {
+                jQuery(document).onFirst( 'keypress', (function(event) {
                     if(_self.shell.isActive()) {
                         return;
                     }
