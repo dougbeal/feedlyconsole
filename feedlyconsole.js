@@ -682,4 +682,3 @@ function loadjQuery(url, callback)
 
 loadjQuery(jquery, loadScripts);
 window.console.log("file feedlyconsole.js");
-
