@@ -1,3 +1,6 @@
 [submodule "josh.js"]
 	path = josh.js
 	url = https://github.com/sdether/josh.js
+[submodule "jquery.bind-first"]
+	path = jquery.bind-first
+	url = https://github.com/private-face/jquery.bind-first.git

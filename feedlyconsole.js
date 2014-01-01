@@ -3,6 +3,7 @@ var jquery = "http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.js";
 var scripts = [ 
     "http://ajax.googleapis.com/ajax/libs/jqueryui/1.9.2/jquery-ui.min.js",
     "http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.2/underscore-min.js",
+    "http://dougbeal.github.io/feedlyconsole/jquery.bind-first/release/jquery.bind-first-0.2.1.min.js",
     "http://dougbeal.github.io/feedlyconsole/josh.js/js/killring.js",
     "http://dougbeal.github.io/feedlyconsole/josh.js/js/history.js",
     "http://dougbeal.github.io/feedlyconsole/josh.js/js/readline.js",
