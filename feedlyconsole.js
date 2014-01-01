@@ -41,7 +41,7 @@ var scripts = [
     // **templates.prompt**
 
     // Override of the default prompt to provide a multi-line prompt of the current user, repo and path and branch.
-    _self.shell.templates.prompt = _.template("<em>[<%= self.user.login %>/<%= self.repo.name %>]</em></br>(<%=self.branch%>) <strong><%= node.path %> $</strong>");
+    _self.shell.templates.prompt = _.template("<strong><%= node.path %> $</strong>");
 
     // **templates.ls**
 
@@ -53,10 +53,31 @@ var scripts = [
     // Override of the pathhandler *not_found* template, since we will throw *not_found* if you try to access a valid file. This is done for the simplicity of the tutorial.
     _self.shell.templates.not_found = _.template("<div><%=cmd%>: <%=path%>: No such directory</div>");
 
-    //**templates.rateLimitTemplate**
-
-    // Since GitHub rate limits un-authenticated use rather drastically, we render the current rate limit status in the shell so that it is clear that extended experimenting requires authentication.
-    _self.shell.templates.rateLimitTemplate = _.template("<%=remaining%>/<%=limit%><% if(!authenticated) {%> <a href='http://josh.claassen.net/github/authenticate'>Authenticate with Github to increase your Rate Limit.</a><%}%>");
+      //**templates.profile**
+      // {
+      //   "id": "c805fcbf-3acf-4302-a97e-d82f9d7c897f",
+      //   "email": "jim.smith@gmail.com",
+      //   "givenName": "Jim",
+      //   "familyName": "Smith",
+      //   "picture": "https://www.google.com/profile_images/1771656873/bigger.jpg",
+      //   "gender": "male",
+      //   "locale": "en",
+      //   "reader": "9080770707070700",
+      //   "google": "115562565652656565656",
+      //   "twitter": "jimsmith",
+      //   "facebook": "",
+      //   "wave": "2013.7"
+      // }
+      _self.shell.templates.profile = _.template("<div class='userinfo'>" +
+      "<img src='<%=user.picture%>' style='float:right;'/>" +
+      "<table>" +
+      "<tr><td><strong>Id:</strong></td><td><%=user.id %></td></tr>" +
+      "<tr><td><strong>Email:</strong></td><td><%=user.email %></td></tr>" +
+      "<tr><td><strong>Name:</strong></td><td><%=user.givenName %> <%=user.familyName %> </td></tr>" +
+      "<tr><td><strong>Location:</strong></td><td><%=user.location %></td></tr>" +
+      "</table>" +
+      "</div>"
+    ); 
 
     //**templates.user**
 
@@ -71,80 +92,30 @@ var scripts = [
       "</div>"
     );
 
-    // **templates.user_error**
-
-    // Generic error in case setting the user fails.
-    _self.shell.templates.user_error = _.template("Unable to set user '<%=name%>': <%=msg%>");
-
-    // **templates.repos**
-
-    // Just like `ls`, we render a wide list of repositories for `repo -l`.
-    _self.shell.templates.repos = _.template("<ul class='widelist'><% _.each(repos, function(repo) { %><li><%- repo.name %></li><% }); %></ul><div class='clear'/>");
-
-    // **template.repo**
-
-    // Whenever we change repositories or `repo` is called without an argument, we show basic information about the repo.
-    _self.shell.templates.repo = _.template("<div><div><strong>Name: </strong><%=repo.full_name%></div><div><strong>Description: </strong><%=repo.description %></div></div>");
-
-    // **template.repo_not_found**
-
-    // Error message in case someone tries to switch to an invalid repo.
-    _self.shell.templates.repo_not_found = _.template("<div>repo: <%=repo%>: No such repo for user '<%= user %>'</div>");
-
-    // **templates.repo_error**
-
-    // Generic error message in case setting the repo fails.
-    _self.shell.templates.repo_error = _.template("Unable to switch to repository '<%=name%>': <%=msg%>");
-
-    // **templates.branches**
-
-    // Again, like `ls`, we render a wide like of branches for `branch -l`.
-    _self.shell.templates.branches = _.template("webfont.woff<ul class='widelist'><% _.each(branches, function(branch) { %><li><%- branch.name %></li><% }); %></ul><div class='clear'/>");
-
-    // **templates.branch_error**
-
-    // Generic error message in case setting the current branch fails.
-    _self.shell.templates.branch_error = _.template("Unable to switch to branch '<%=name%>': <%=msg%>");
-
-    // **templates.branches_error**
-
-    // Generic error in case fetching the list of branches fails.
-    _self.shell.templates.branches_error = _.template("Unable to load branch list: <%=msg%>");
-
     // Adding Commands to the Console
     // ==============================
 
     //<section id='cmd.user'/>
 
-    // user [ username ]
+    // profile
     // -----------------
 
-    // The `user` command is used to display information about the current user or switch between github users.
-    _self.shell.setCommandHandler("user", {
+    // The `profile` command is used to display information about the current user
+    _self.shell.setCommandHandler("profile", {
 
       // `exec` handles the execution of the command.
       exec: function(cmd, args, callback) {
-
-        // Given no arguments, it renders information about the current user, using the data fetched at user initialization.
-        if(!args || args.length == 0) {
-          return callback(_self.shell.templates.user({user: _self.user}));
-        }
-        var username = args[0];
-
-        // Given an argument (assumed to be a username), it calls `setUser` to fetch the specified user and repository
-        // information.
-        return setUser(username, null,
-          function(msg) {
-            return callback(_self.shell.templates.user_error({name: username, msg: msg}));
-          },
-          function(user) {
-            return callback(_self.shell.templates.user({user: user}));
+          if(_self.profile) {
+              return callback(_self.profile);
           }
-        );
+          get("profile", null, function(profile) {
+              if(!profile) {
+                  return err("api request failed to get profile");
+              }
+              _self.profile = profile
+              return callback(_self.shell.templates.profile({profile: _self.profile}));
+          });
       }
-
-      // `user` has no completion handler, since the userbase of github is quite large and creating a search based
-      // completion handler is beyond the scope of this tutorial implementation.
     });
 
     //<section id='cmd.repo'/>
