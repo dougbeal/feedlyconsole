@@ -10,8 +10,10 @@ var scripts = [
     "http://dougbeal.github.io/feedlyconsole/josh.js/js/pathhandler.js",
     "http://dougbeal.github.io/feedlyconsole/josh.js/js/example.js"
 ];
-var css =[  "http://dougbeal.github.io/feedlyconsole/stylesheets/feedlyconsole.css"
-var css_template = "<link rel='stylesheet' type='text/css' href='{url}' />"
+var css = [ 
+    "http://dougbeal.github.io/feedlyconsole/stylesheets/feedlyconsole.css"
+];
+var css_template = "<link rel='stylesheet' type='text/css' href='{url}' />";
 
 ////////////////////////////////////////////////////////////
 // based on josh.js:gh-pages githubconsole
