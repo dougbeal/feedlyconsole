@@ -12,15 +12,15 @@ var scripts = [
 ];
 
 
-function scriptsLoaded()
+function initializeConsole()
 { 
     window.console.log("scripts loaded, feedlyconsole.js complete");
     window.console.log(jQuery('head'));
 }
 
-function callbackjQuery()
+function loadScripts()
 {
-    jQuery.when.apply(jQuery, jQuery.map(scripts, jQuery.getScript)).done(scriptsLoaded);
+    jQuery.when.apply(jQuery, jQuery.map(scripts, jQuery.getScript)).done(initializeConsole);
 
 }
 
@@ -50,6 +50,6 @@ function loadjQuery(url, callback)
     }
 }
 
-loadjQuery(jquery, callbackjQuery);
+loadjQuery(jquery, loadScripts);
 window.console.log("file feedlyconsole.js");
 
