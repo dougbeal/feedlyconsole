@@ -638,18 +638,18 @@ function initializeConsole()
 { 
     window.console.log("scripts loaded, feedlyconsole.js complete");
     window.console.log(jQuery('head'));
-    jQuery('body')('#shell-container').add('
-<div id="consoletab" class="consoletab" style="display: block;">Click or type <code>~</code> to show Console</div>
-<div id="shell-container">
-  <div id=shell-status>Github rate limit: <span id="ratelimit"></span></div>
-  <div id="shell-panel">
-    <div>Type <code>help</code> or hit <code>TAB</code> for a list of commands. Press
-      <code>Ctrl-C</code> to hide the console.
-    </div>
-    <div id="shell-view"></div>
-
-  </div>
-</div>');
+    jQuery('body')('#shell-container').add(
+'<div id="consoletab" class="consoletab" style="display: block;">' +
+'Click or type <code>~</code> to show Console</div>' +
+'<div id="shell-container">' +
+'  <div id=shell-status>Github rate limit: <span id="ratelimit"></span></div>' +
+'  <div id="shell-panel">' +
+'    <div>Type <code>help</code> or hit <code>TAB</code> for a list of commands. Press' +
+'      <code>Ctrl-C</code> to hide the console.' +
+'    </div>' +
+'    <div id="shell-view"></div>' +
+'  </div>' +
+'</div>');
 }
 
 function loadScripts()
