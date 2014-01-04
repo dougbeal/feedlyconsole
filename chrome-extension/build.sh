@@ -1,9 +1,5 @@
 #!/bin/bash
-cp -vf feedlyconsole.js chrome-extension/
-cp -vf feedlyconsole.html chrome-extension/
-cp -vf manifest.json chrome-extension/
 cp -vf josh.js/js/*.js chrome-extension/
-cp -vf stylesheets/*.css chrome-extension/
 ( 
     cd chrome-extension/
     if [ ! -e jquery.min.js ]; then
