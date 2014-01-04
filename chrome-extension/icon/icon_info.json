@@ -1,7 +1,10 @@
 {
+    "19": "icon/utilities-terminal-5_19.png", 
+    "38": "icon/utilities-terminal-5_38.png", 
     "128": "icon/utilities-terminal-5_128.png", 
     "16": "icon/utilities-terminal-5_16.png", 
     "22": "icon/utilities-terminal-5_22.png", 
     "32": "icon/utilities-terminal-5_32.png", 
-    "48": "icon/utilities-terminal-5_48.png"
+    "48": "icon/utilities-terminal-5_48.png", 
+    "svg": "icon/utilities-terminal-5.svg"
 }
