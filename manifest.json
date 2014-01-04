@@ -1,0 +1,55 @@
+{
+    "name": "Feedly Console",
+    "description": "tilde or click to open console to enter feedly commands.",
+    "version": "1.0",
+    "manifest_version": 2,
+    "icons": {
+        "128": "icon/utilities-terminal-5_128.png", 
+        "16": "icon/utilities-terminal-5_16.png", 
+        "22": "icon/utilities-terminal-5_22.png", 
+        "32": "icon/utilities-terminal-5_32.png", 
+        "48": "icon/utilities-terminal-5_48.png"
+    },
+    "permissions" : [
+        "tabs"
+    ],
+    "background" : {
+        "scripts": ["background.js"]
+    },
+    "content_scripts": [
+        {
+            "matches": [ "*://*.feedly.com/*" ],
+            "js": [ "jquery.min.js",
+                    "jquery-ui.min.js",
+                    "underscore-min.js",
+                    "killring.js",
+                    "history.js",
+                    "readline.js",
+                    "shell.js",
+                    "pathhandler.js",
+                    "feedlyconsole.js"
+                  ],
+            "css": [ "feedlyconsole.css", 
+                     "source-code-pro.css" 
+                   ]
+        } 
+    ],
+    "web_accessible_resources": [
+        "jquery.min.map",
+        "jquery-ui.min.map"
+    ],
+    "page_action": {
+        "default_title": "Feedly Console",
+        "default_popup": "feedlyconsole.html",
+        "default_icon": {
+            "19": "icon/utilities-terminal-5_19.png", 
+            "38": "icon/utilities-terminal-5_38.png"
+        }
+    },
+    "commands": {
+        "_execute_page_action": {
+            "suggested_key": { "default": "Alt+Period" },
+            "description": "Activate feedly console."
+        }
+    }
+}
