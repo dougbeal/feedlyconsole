@@ -19,6 +19,8 @@ console.log("[feedlyconsole] loading");
             shell: Josh.Shell({console: _console}),
             api_version: "v3/",
             api: "unset",
+            OAuth: "",
+            ui: null
         };
 
         // `Josh.PathHandler` is attached to `Josh.Shell` to provide basic file system navigation.
@@ -43,6 +45,11 @@ console.log("[feedlyconsole] loading");
         // Override of the pathhandler *not_found* template, since we will throw *not_found* if you try to access a valid file. This is done for the simplicity of the tutorial.
         _self.shell.templates.not_found = _.template("<div><%=cmd%>: <%=path%>: No such directory</div>");
 
+        //**templates.rateLimitTemplate**
+        
+        // rate limiting will be added later to feedly api
+        _self.shell.templates.rateLimitTemplate = _.template("<%=remaining%>/<%=limit%>");
+
         //**templates.profile**
         // {
         //   "id": "c805fcbf-3acf-4302-a97e-d82f9d7c897f",
@@ -58,13 +65,14 @@ console.log("[feedlyconsole] loading");
         //   "facebook": "",
         //   "wave": "2013.7"
         // }
+        // {"id":"10f8ec78-deba-43d0-862e-d3247d252a1a","client":"Feedly sandbox client","familyName":"Beal","givenName":"Douglas","google":"106867699444780221078","email":"dougbeal@gmail.com","gender":"male","picture":"https://lh6.googleusercontent.com/-cTmUKJfU-bU/AAAAAAAAAAI/AAAAAAAAIfY/iuvpdEN5tlM/photo.jpg?sz=50","wave":"2013.52","created":1388188400136,"evernoteConnected":false,"pocketConnected":false,"wordPressConnected":false,"locale":"en","fullName":"Douglas Beal"}
         _self.shell.templates.profile = _.template("<div class='userinfo'>" +
-                                                   "<img src='<%=user.picture%>' style='float:right;'/>" +
+                                                   "<img src='<%=profile.picture%>' style='float:right;'/>" +
                                                    "<table>" +
-                                                   "<tr><td><strong>Id:</strong></td><td><%=user.id %></td></tr>" +
-                                                   "<tr><td><strong>Email:</strong></td><td><%=user.email %></td></tr>" +
-                                                   "<tr><td><strong>Name:</strong></td><td><%=user.givenName %> <%=user.familyName %> </td></tr>" +
-                                                   "<tr><td><strong>Location:</strong></td><td><%=user.location %></td></tr>" +
+                                                   "<tr><td><strong>Id:</strong></td><td><%=profile.id %></td></tr>" +
+                                                   "<tr><td><strong>Email:</strong></td><td><%=profile.email %></td></tr>" +
+                                                   "<tr><td><strong>Name:</strong></td><td><%=profile.fullName %></td></tr>" +
+
                                                    "</table>" +
                                                    "</div>"
                                                   ); 
@@ -324,6 +332,7 @@ console.log("[feedlyconsole] loading");
             var request = {
                 url: url,
                 dataType: 'json',
+                headers: { "Authorization": "OAuth " + _self.OAuth },
                 xhrFields: {
                     withCredentials: true
                 }
@@ -407,7 +416,7 @@ console.log("[feedlyconsole] loading");
                 _self.pathhandler.current = node;
                 _self.root = node;
                 return feedlyconsole.ready(function() {
-                    initializeUI();
+
                 });
             });
         }
@@ -416,8 +425,9 @@ console.log("[feedlyconsole] loading");
             if( $('#shell-container').length === 0 ) {
                 feedlyconsole=$("" +
 '<link rel="stylesheet" href="' + chrome.extension.getURL("stylesheets/feedlyconsole.css") + '">' +
+'<link rel="stylesheet" href="' + chrome.extension.getURL("source-code-pro.css") + '">' +
 '<script>Josh.Debug = true;</script>' +
-'<div id="consoletab" class="consoletab" style="display: block;"> '+
+'<div id="consoletab" class="consoletab" style="display: hidden;"> '+
 '  Click or type <code>~</code> to show Console</div>' +
 '<div id="shell-container"> '+
 '  <div id=shell-status>...</div>' +
@@ -432,6 +442,8 @@ console.log("[feedlyconsole] loading");
                 var target = $(document.body);
                 target.prepend(feedlyconsole);
                 console.log("[feedlyconsole] prepend at " + target.id);
+                // must be run whenever the shell-container is blown away
+                initializeUI();
             }
         }
         //<section id='getDir'/>
@@ -607,31 +619,6 @@ console.log("[feedlyconsole] loading");
                 $consoletab.addClass('consoletab');
             });
 
-            // wire up pageAction to toggle console
-            chrome.runtime.onMessage.addListener(
-                function(request, sender, sendResponse) {
-                    _console.log("[feedlyconsole] msg:" + request.msg);
-
-                    if ( request.action === "icon_active" ) {
-                        url_array = request.url.split("/");
-                        url = url_array[0] + "//" + url_array[2] + "/" + _self.api_version;
-                        _console.log("[feedlyconsole] set api:" + url);
-                        _self.api = url;
-                    } else if ( request.action === "toggle_console" ) {
-                        // make sure console hasn't been wiped during page loading
-                        if( $('#shell-container').length === 0 ) {
-                            initialize();
-                            activateAndShow();
-                        } else {
-                            toggleActivateAndShow();
-                        }
-                    } else {
-                        _console.log("[feedlyconsole] unknown action:" + request.action);
-                    }
-                    sendResponse({ "action": "ack" });
-                });
-
-
             // We also wire up a click handler to show the console to the `consoletab`.
             $consoletab.click(function() {
                 activateAndShow();
@@ -658,6 +645,7 @@ console.log("[feedlyconsole] loading");
             }
 
             function activateAndShow() {
+                insertShellUI();
                 $consoletab.slideUp();
                 _self.shell.activate();
                 $consolePanel.slideDown();
@@ -670,6 +658,10 @@ console.log("[feedlyconsole] loading");
                 $consolePanel.blur();
                 $consoletab.slideDown();
             }
+            _self.ui = {};
+            _self.ui.toggleActivateAndShow = toggleActivateAndShow;
+            _self.ui.activateAndShow = activateAndShow;
+            _self.ui.hideAndDeactivate = hideAndDeactivate;
 
             _self.shell.onEOT(hideAndDeactivate);
             _self.shell.onCancel(hideAndDeactivate);
@@ -678,6 +670,35 @@ console.log("[feedlyconsole] loading");
 
         _console.log("[feedlyconsole] initialize");        
         initialize();
+        // wire up pageAction to toggle console
+        // kind of a mess, but we only want to create one listener, 
+        // but initializeUI can be called multiple times because
+        // feedly will blow away console that are added to early
+        chrome.runtime.onMessage.addListener(
+            function(request, sender, sendResponse) {
+                _console.log("[feedlyconsole] msg:" + request.msg);
+
+                if ( request.action === "icon_active" ) {
+                    url_array = request.url.split("/");
+                    url = url_array[0] + "//" + url_array[2] + "/" + _self.api_version;
+                    _console.log("[feedlyconsole] set api:" + url);
+                    _self.api = url;
+                } else if ( request.action === "toggle_console" ) {
+                    // make sure console hasn't been wiped during page loading
+                    if( $('#shell-container').length === 0 ) {
+                        initialize();
+                        _self.ui.activateAndShow();
+                    } else {
+                        _self.ui.toggleActivateAndShow();
+                    }
+                } else if ( request.action === "cookie_feedlytoken" ) {
+                    _self.OAuth = request.feedlytoken;
+                    _console.log("[feedlyconsole] token " + _self.OAuth);
+                } else {
+                    _console.log("[feedlyconsole] unknown action:" + request.action);
+                }
+                sendResponse({ "action": "ack" });
+            });
             
     })(root, $, _);
 })

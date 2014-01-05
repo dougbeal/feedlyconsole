@@ -1,8 +1,8 @@
 // Called when the url of a tab changes.
 function checkForValidUrl(tabId, changeInfo, tab) {
-    // If the letter 'g' is found in the tab's URL...
     if( /.*feedly.com.*/.test(tab.url)) {
         // ... show the page action.
+        console.log( "checkForValidUrl " + tab.id + "/" + tab.url);
         activatePageActionTab(tab);
 
     }
@@ -49,12 +49,32 @@ function activateConsole(tab){
 }
 
 function grabCookies(tab){
-    chrome.cookies.getAll({"name":"session@cloud"}, function(cookies) {
-        for (var i in cookies) {
-            console.log(JSON.stringify(cookies[i]));
-            console.log(JSON.stringify(JSON.parse(cookies[i].value)));
-        }
-    });
+    domain = tab.url.split('/')[2];
+    filter = { "name":"session@cloud", 
+               "domain":domain 
+             };
+    chrome.cookies.getAll(filter, function(cookies) {
+            for (var i in cookies) {
+                //console.log(JSON.stringify(cookies[i]));
+                values=JSON.parse(cookies[i].value);
+                //console.log(JSON.stringify(values));
+
+                action = "cookie_feedlytoken";
+                msg = action + " " + tab.url + " to " + tab.id + " " + filter;
+                console.log(msg);
+                chrome.tabs.sendMessage(tab.id, 
+                                        {
+                                            "action": action,
+                                            "url": tab.url,
+                                            "id": tab.id,
+                                            "feedlytoken":values.feedlyToken,
+                                            "msg": msg
+                                        },
+                                        function(response) {
+                                            console.log("response: " + msg);
+                                        });
+            }
+        });
 }
 chrome.pageAction.onClicked.addListener(activateConsole);
 

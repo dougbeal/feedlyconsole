@@ -24,16 +24,18 @@
         {
             "run_at": "document_start",
             "matches": [ "*://*.feedly.com/*" ],
-            "js": [ "jquery.min.js",
-                    "jquery-ui.min.js",
-                    "underscore-min.js",
-                    "killring.js",
-                    "history.js",
-                    "readline.js",
-                    "shell.js",
-                    "pathhandler.js",
-                    "feedlyconsole.js"
-                  ],
+            "js": [
+                //"jquery.min.js",
+                "jquery.js",
+                "jquery-ui.min.js",
+                "underscore-min.js",
+                "killring.js",
+                "history.js",
+                "readline.js",
+                "shell.js",
+                "pathhandler.js",
+                "feedlyconsole.js"
+            ],
             "all_frames": false
         } 
     ],
