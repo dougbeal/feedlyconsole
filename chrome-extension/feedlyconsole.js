@@ -1,23 +1,10 @@
-console.log("[feedlyconsole]" + jQuery('head'));
-if( jQuery('#shell-container').length == 0 ) {
-    jQuery('body').append( jQuery(
-        '<div id="consoletab" class="consoletab" style="display: block;">' +
-            'Click or type <code>~</code> to show Console</div>' +
-            '<div id="shell-container">' +
-            '  <div id=shell-status>...</div>' +
-            '  <div id="shell-panel">' +
-            '    <div>Type <code>help</code> or hit <code>TAB</code> for a list of commands. Press' +
-            '      <code>Ctrl-C</code> to hide the console.' +
-            '    </div>' +
-            '    <div id="shell-view"></div>' +
-            '  </div>' +
-            '</div>'));
-}
+
+console.log("[feedlyconsole] loading");
 ////////////////////////////////////////////////////////////
 // based on josh.js:gh-pages githubconsole
-(function(root, jQuery, _) {
-    Josh.FeedlyConsole = (function(root, jQuery, _) {
-
+(function(root, $, _) {
+    Josh.FeedlyConsole = (function(root, $, _) {
+        Josh.Debug = true;
         // Enable console debugging, when Josh.Debug is set and there is a console object on the document root.
         var _console = (Josh.Debug && root.console) ? root.console : {
             log: function() {
@@ -30,7 +17,8 @@ if( jQuery('#shell-container').length == 0 ) {
         // `_self` contains all state variables for the console's operation
         var _self = {
             shell: Josh.Shell({console: _console}),
-            api: "v3/"
+            api_version: "v3/",
+            api: "unset",
         };
 
         // `Josh.PathHandler` is attached to `Josh.Shell` to provide basic file system navigation.
@@ -114,7 +102,7 @@ if( jQuery('#shell-container').length == 0 ) {
                     if(!profile) {
                         return err("api request failed to get profile");
                     }
-                    _self.profile = profile
+                    _self.profile = profile;
                     return callback(_self.shell.templates.profile({profile: _self.profile}));
                 });
             }
@@ -132,7 +120,7 @@ if( jQuery('#shell-container').length == 0 ) {
             exec: function(cmd, args, callback) {
 
                 // Given no arguments, it renders information about the current repo.
-                if(!args || args.length == 0) {
+                if(!args || args.length === 0) {
                     return callback(_self.shell.templates.repo({repo: _self.repo}));
                 }
                 var name = args[0];
@@ -188,7 +176,7 @@ if( jQuery('#shell-container').length == 0 ) {
             exec: function(cmd, args, callback) {
 
                 // Given no arguments, it simply returns the current branch, which will be rendered by the shell.
-                if(!args || args.length == 0) {
+                if(!args || args.length === 0) {
                     return callback(_self.branch);
                 }
                 var branch = args[0];
@@ -340,7 +328,7 @@ if( jQuery('#shell-container').length == 0 ) {
                     withCredentials: true
                 }
             };
-            jQuery.ajax(request).done(function(response, status, xhr) {
+            $.ajax(request).done(function(response, status, xhr) {
 
                 // Every response from the API includes rate limiting headers, as well as an indicator injected by the API proxy
                 // whether the request was done with authentication. Both are used to display request rate information and a
@@ -350,8 +338,8 @@ if( jQuery('#shell-container').length == 0 ) {
                     limit: parseInt(xhr.getResponseHeader("X-RateLimit-Limit")),
                     authenticated: xhr.getResponseHeader('Authenticated') === 'true'
                 };
-                jQuery('#ratelimit').html(_self.shell.templates.rateLimitTemplate(ratelimit));
-                if(ratelimit.remaining == 0) {
+                $('#ratelimit').html(_self.shell.templates.rateLimitTemplate(ratelimit));
+                if(ratelimit.remaining === 0) {
                     alert("Whoops, you've hit the github rate limit. You'll need to authenticate to continue");
                     _self.shell.deactivate();
                     return null;
@@ -363,7 +351,7 @@ if( jQuery('#shell-container').length == 0 ) {
                     return callback();
                 }
                 return callback(response);
-            })
+            });
         }
 
         //<section id='ensureBranches'/>
@@ -410,17 +398,42 @@ if( jQuery('#shell-container').length == 0 ) {
         // --------------
 
         // This function sets the node
-        function initialize(err, callback) {
+        function initialize(evt) {//err, callback) {
+            insertShellUI();
             return getDir("/",  function(node) {
                 if(!node) {
-                    return err("could not initialize root directory of repository '" + repo.full_name + "'");
+                    return err("could not initialize root directory");
                 }
                 _self.pathhandler.current = node;
                 _self.root = node;
-                return callback(node);
+                return feedlyconsole.ready(function() {
+                    initializeUI();
+                });
             });
         }
 
+        function insertShellUI() {
+            if( $('#shell-container').length === 0 ) {
+                feedlyconsole=$("" +
+'<link rel="stylesheet" href="' + chrome.extension.getURL("stylesheets/feedlyconsole.css") + '">' +
+'<script>Josh.Debug = true;</script>' +
+'<div id="consoletab" class="consoletab" style="display: block;"> '+
+'  Click or type <code>~</code> to show Console</div>' +
+'<div id="shell-container"> '+
+'  <div id=shell-status>...</div>' +
+'  <div id="shell-panel">' +
+'    <div>Type <code>help</code> or hit <code>TAB</code> for a list of commands. Press' +
+'      <code>Ctrl-C</code> to hide the console.' +
+'    </div>' +
+'    <div id="shell-view"></div>' +
+'  </div>' +
+'</div>');
+                //feedlyconsole.src = chrome.extension.getURL("feedlyconsole.html");
+                var target = $(document.body);
+                target.prepend(feedlyconsole);
+                console.log("[feedlyconsole] prepend at " + target.id);
+            }
+        }
         //<section id='getDir'/>
 
         // getDir
@@ -491,7 +504,7 @@ if( jQuery('#shell-container').length == 0 ) {
         // This function tries to match a repository from the given list of known repositories. Should `repo_name` be null,
         // the first repository in `repos` is returned.
         function getRepo(repo_name, repos) {
-            if(!repos || repos.length == 0) {
+            if(!repos || repos.length === 0) {
                 return null;
             }
             var repo;
@@ -585,7 +598,7 @@ if( jQuery('#shell-container').length == 0 ) {
             _console.log("activating");
 
             // We grab the `consoletab` and wire up hover behavior for it.
-            var $consoletab = jQuery('#consoletab');
+            var $consoletab = $('#consoletab');
             $consoletab.hover(function() {
                 $consoletab.addClass('consoletab-hover');
                 $consoletab.removeClass('consoletab');
@@ -594,14 +607,39 @@ if( jQuery('#shell-container').length == 0 ) {
                 $consoletab.addClass('consoletab');
             });
 
+            // wire up pageAction to toggle console
+            chrome.runtime.onMessage.addListener(
+                function(request, sender, sendResponse) {
+                    _console.log("[feedlyconsole] msg:" + request.msg);
+
+                    if ( request.action === "icon_active" ) {
+                        url_array = request.url.split("/");
+                        url = url_array[0] + "//" + url_array[2] + "/" + _self.api_version;
+                        _console.log("[feedlyconsole] set api:" + url);
+                        _self.api = url;
+                    } else if ( request.action === "toggle_console" ) {
+                        // make sure console hasn't been wiped during page loading
+                        if( $('#shell-container').length === 0 ) {
+                            initialize();
+                            activateAndShow();
+                        } else {
+                            toggleActivateAndShow();
+                        }
+                    } else {
+                        _console.log("[feedlyconsole] unknown action:" + request.action);
+                    }
+                    sendResponse({ "action": "ack" });
+                });
+
+
             // We also wire up a click handler to show the console to the `consoletab`.
             $consoletab.click(function() {
                 activateAndShow();
             });
 
-            var $consolePanel = jQuery('#shell-container');
+            var $consolePanel = $('#shell-container');
             $consolePanel.resizable({ handles: "s"});
-            jQuery(document).on( 'keypress', (function(event) {
+            $(document).on( 'keypress', (function(event) {
                 if(_self.shell.isActive()) {
                     return;
                 }
@@ -610,6 +648,15 @@ if( jQuery('#shell-container').length == 0 ) {
                     activateAndShow();
                 }
             }));
+
+            function toggleActivateAndShow() {
+                if(_self.shell.isActive()) {
+                    hideAndDeactivate();
+                } else {
+                    activateAndShow();
+                }
+            }
+
             function activateAndShow() {
                 $consoletab.slideUp();
                 _self.shell.activate();
@@ -628,15 +675,13 @@ if( jQuery('#shell-container').length == 0 ) {
             _self.shell.onCancel(hideAndDeactivate);
         }
 
-        //<section id='document.ready'/>
 
-        // On document ready, the default user and repo are loaded from the API before the UI can complete initialization.
-        jQuery(document).ready(function() {
-            initialize(function() {}, initializeUI)
-        });
-    })(root, jQuery, _);
+        _console.log("[feedlyconsole] initialize");        
+        initialize();
+            
+    })(root, $, _);
 })
-(this, jQuery, _);
+(this, $, _);
 
 
 

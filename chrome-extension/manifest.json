@@ -11,13 +11,18 @@
         "48": "icon/utilities-terminal-5_48.png"
     },
     "permissions" : [
-        "tabs"
+        "tabs",
+        "cookies",
+        "*://*.feedly.com/"
     ],
     "background" : {
-        "scripts": ["background.js"]
+        "scripts": [
+            "background.js"
+        ]
     },
     "content_scripts": [
         {
+            "run_at": "document_start",
             "matches": [ "*://*.feedly.com/*" ],
             "js": [ "jquery.min.js",
                     "jquery-ui.min.js",
@@ -29,18 +34,19 @@
                     "pathhandler.js",
                     "feedlyconsole.js"
                   ],
-            "css": [ "feedlyconsole.css", 
-                     "source-code-pro.css" 
-                   ]
+            "all_frames": false
         } 
     ],
     "web_accessible_resources": [
         "jquery.min.map",
-        "jquery-ui.min.map"
+        "jquery-ui.min.map",
+        "stylesheets/feedlyconsole.css", 
+        "source-code-pro.css",
+        "feedlyconsole.html"
+        
     ],
     "page_action": {
         "default_title": "Feedly Console",
-        "default_popup": "feedlyconsole.html",
         "default_icon": {
             "19": "icon/utilities-terminal-5_19.png", 
             "38": "icon/utilities-terminal-5_38.png"
