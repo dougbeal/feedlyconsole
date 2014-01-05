@@ -1,3 +1,9 @@
+// supress keydown, keypress when console is active
+
+var script = $('<script />');
+script.src = chrome.extension.getURL('inject.js');
+$('head').prepend(script);
+
 
 console.log("[feedlyconsole] loading");
 ////////////////////////////////////////////////////////////

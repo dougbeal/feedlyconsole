@@ -77,7 +77,9 @@ function grabCookies(tab){
         });
 }
 chrome.pageAction.onClicked.addListener(activateConsole);
-
+chrome.commands.onCommand.addListener(function(command) {
+    console.log('Command:', command);
+});
 // Listen for any changes to the URL of any tab.
 chrome.tabs.onUpdated.addListener(checkForValidUrl);
 
