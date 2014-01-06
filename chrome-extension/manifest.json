@@ -45,7 +45,8 @@
         "feedlyconsole.css", 
         "stylesheets/source-code-pro.css",
         "feedlyconsole.html",
-        "inject.js"
+        "inject.js",
+        "http://themes.googleusercontent.com/static/fonts/sourcecodepro/v3/mrl8jkM18OlOQN8JLgasD9zbP97U9sKh0jjxbPbfOKg.ttf"
         
     ],
     "page_action": {
