@@ -141,27 +141,35 @@ console.log("[feedlyconsole] loading %O", Josh);
         }
         //<section id='cmd.user'/>
 
+        function buildExecCommandHandler(command_name) {
+
+            return {
+                // `exec` handles the execution of the command.
+                exec: function(cmd, args, callback) {
+                    template = _self.shell.templates[command_name];
+                    cache = _self[command_name];
+                    template_args = {};
+                    if(cache) {
+                        template_args[command_name] = cache;
+                        return callback(template(template_args));
+                    }
+                    get(command_name, null, function(profile) {
+                        if(!profile) {
+                            return err("api request failed to get profile");
+                        }
+                        template_args[command_name] = _self[command_name] = profile;
+                        _console.debug("[Josh.FeedlyConsole]profile %O cmd %O args %O", profile, cmd, args);
+                        return callback(template(template_args));
+                    });
+                }
+            };
+        }
+
         // profile
         // -----------------
 
         // The `profile` command is used to display information about the current user
-        addCommandHandler("profile", {
-
-            // `exec` handles the execution of the command.
-            exec: function(cmd, args, callback) {
-                if(_self.profile) {
-                    return callback(_self.profile);
-                }
-                get("profile", null, function(profile) {
-                    if(!profile) {
-                        return err("api request failed to get profile");
-                    }
-                    _self.profile = profile;
-                    _console.debug("[Josh.FeedlyConsole]profile %O cmd %O args %O", profile, cmd, args);
-                    return callback(_self.shell.templates.profile({profile: _self.profile}));
-                });
-            }
-        });
+        addCommandHandler("profile", buildExecCommandHandler("profile"));
 
         //<section id='cmd.repo'/>
 
@@ -413,6 +421,7 @@ console.log("[feedlyconsole] loading %O", Josh);
         }
 
         function mutationHandler (mutationRecords) {
+            _found = false;
             mutationRecords.forEach ( function (mutation) {
                 target = mutation.target;
                 if( target.id === 'box' ) {
@@ -425,8 +434,15 @@ console.log("[feedlyconsole] loading %O", Josh);
                     }
                     _console.debug( "[feedlyconsole/observer] %s: [%s]=%s on %O", type, name, value, target);
 
-                    if( name === 'class' ) {
+                    // not sure if wide will always be set, so trigger on the next mod
+                    if( !_found &&
+                        ((name === 'class' && 
+                        value.indexOf("wide") != -1 ) ||
+                        (name === '_pageid' && 
+                         value.indexOf("rot21") != -1 )))
+                    {
                         _console.debug("[feedlyconsole] mutation observer end %O", observer);
+                        _found = true;
                         doInsertShellUI();
                         // found what we were looking for
                         return null;
