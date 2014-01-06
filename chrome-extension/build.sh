@@ -1,7 +1,7 @@
 #!/bin/bash
 (
     cd javascript
-    cp -vf ../../josh.js/js/*.js .
+    cp -vf ../../josh.js/js/{readline,history,killring,pathhandler,shell}.js .
     if [ ! -e jquery.min.js ]; then
         curl -qO "http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.js" 
         curl -qO "http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js" 
