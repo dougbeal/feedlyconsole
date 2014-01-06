@@ -20,6 +20,8 @@
     if [ ! -e source-code-pro.css ]; then
         curl -q "http://fonts.googleapis.com/css?family=Source+Code+Pro" > source-code-pro.css
     fi
-
+    if [ ! -e jquery-ui.css ]; then
+        curl -qO "http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css"
+    fi
 )
 

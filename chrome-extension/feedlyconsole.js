@@ -92,6 +92,8 @@ console.log("[feedlyconsole] loading %O", Josh);
         // rate limiting will be added later to feedly api
         _self.shell.templates.rateLimitTemplate = _.template("<%=remaining%>/<%=limit%>");
 
+        _self.shell.templates.default_template = _.template("<div><%= JSON.stringify(data) %></div>");
+
         //**templates.profile**
         // {
         //   "id": "c805fcbf-3acf-4302-a97e-d82f9d7c897f",
@@ -119,26 +121,12 @@ console.log("[feedlyconsole] loading %O", Josh);
                                                    "</div>"
                                                   ); 
 
-        //**templates.user**
 
-        // Render basic information (including gravatar) whenever we switch users or enter `user` without an argument
-        _self.shell.templates.user = _.template("<div class='userinfo'>" +
-                                                "<img src='<%=user.avatar_url%>' style='float:right;'/>" +
-                                                "<table>" +
-                                                "<tr><td><strong>Id:</strong></td><td><%=user.id %></td></tr>" +
-                                                "<tr><td><strong>Name:</strong></td><td><%=user.login %></td></tr>" +
-                                                "<tr><td><strong>Location:</strong></td><td><%=user.location %></td></tr>" +
-                                                "</table>" +
-                                                "</div>"
-                                               );
 
         // Adding Commands to the Console
         // ==============================
 
-        function addCommandHandler(name, map) {
-            _self.shell.setCommandHandler(name, map);
-            _self.root_commands[name] = map;
-        }
+
         //<section id='cmd.user'/>
 
         function buildExecCommandHandler(command_name) {
@@ -147,29 +135,46 @@ console.log("[feedlyconsole] loading %O", Josh);
                 // `exec` handles the execution of the command.
                 exec: function(cmd, args, callback) {
                     template = _self.shell.templates[command_name];
-                    cache = _self[command_name];
                     template_args = {};
+                    cache = _self[command_name];
+                    if ( template === undefined ) {
+                        template = _self.shell.templates.default_template;
+                        template_args.data = cache;
+                        _console.log("[Josh.FeedlyConsole] using default template for %s", command_name);
+                    }
+
                     if(cache) {
                         template_args[command_name] = cache;
                         return callback(template(template_args));
                     }
-                    get(command_name, null, function(profile) {
-                        if(!profile) {
-                            return err("api request failed to get profile");
+                    get(command_name, null, function(data) {
+                        if(!data) {
+                            return err("api request failed to get data");
                         }
-                        template_args[command_name] = _self[command_name] = profile;
-                        _console.debug("[Josh.FeedlyConsole]profile %O cmd %O args %O", profile, cmd, args);
+                        template_args.data = template_args[command_name] = _self[command_name] = data;
+                        _console.debug("[Josh.FeedlyConsole] data %O cmd %O args %O", data, cmd, args);
                         return callback(template(template_args));
                     });
                 }
             };
         }
 
-        // profile
-        // -----------------
+        var simple_commands = ['profile',
+                               'tags',
+                               'subscriptions',
+                               'preferences',
+                               'categories',
+                               'topics',
+                               //'opml'
+                               ];
 
-        // The `profile` command is used to display information about the current user
-        addCommandHandler("profile", buildExecCommandHandler("profile"));
+        function addCommandHandler(name, map) {
+            _self.shell.setCommandHandler(name, map);
+            _self.root_commands[name] = map;
+        }
+        _.each( simple_commands, function(command) {
+            addCommandHandler(command, buildExecCommandHandler(command));
+        });
 
         //<section id='cmd.repo'/>
 
@@ -380,7 +385,14 @@ console.log("[feedlyconsole] loading %O", Josh);
             });
         }
 
-
+        function insertCSSLink(name) {
+            // insert css into head
+            $('head').prepend( $('<link/>', {
+                rel: "stylesheet",
+                type: "text/css",
+                href: chrome.extension.getURL(name)
+            }));
+        }
         function doInsertShellUI() {
             observer.disconnect();
 
@@ -388,17 +400,10 @@ console.log("[feedlyconsole] loading %O", Josh);
             file = "feedlyconsole.html";
             _console.debug("[feedlyconsole] injecting " + file);
 
-            // insert css into head
-            $('head').prepend( $('<link/>', {
-                rel: "stylesheet",
-                type: "text/css",
-                href: chrome.extension.getURL("feedlyconsole.css")
-            }));
-            $('head').prepend( $('<link/>', {
-                rel: "stylesheet",
-                type: "text/css",
-                href: chrome.extension.getURL("stylesheets/source-code-pro.css")
-            }));
+            insertCSSLink("feedlyconsole.css");
+            insertCSSLink("stylesheets/source-code-pro.css");
+            insertCSSLink("stylesheets/styles.css");
+            insertCSSLink("stylesheets/jquery-ui.css");
 
             feedlyconsole = $('<div/>', {
                 'id': 'feedlyconsole'
