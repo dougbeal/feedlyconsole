@@ -1,6 +1,3 @@
 [submodule "josh.js"]
 	path = josh.js
 	url = https://github.com/dougbeal/josh.js
-[submodule "jquery.bind-first"]
-	path = jquery.bind-first
-	url = https://github.com/dougbeal/jquery.bind-first.git
