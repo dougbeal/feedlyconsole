@@ -1,19 +1,52 @@
-// supress keydown, keypress when console is active
+function inject() {
+    // inject after readline is initilized
+    $(document).ready( function() {
+        file = 'inject.js';
+        // supress keydown, keypress when console is active
+        console.debug("[feedlyconsole] injecting " + file);
+        // var script = $('<script type="text/javascript">'+
+        //                code + "</script>");
+        var script = $('<script/>', {
+            src: chrome.extension.getURL(file),
+            type: 'text/javascript'
+        });
 
-var script = $('<script />');
-script.src = chrome.extension.getURL('inject.js');
-$('head').prepend(script);
+        script.ready( function() {
+            console.debug("[feedlyconsole] loaded inject.js %O", script);
+        });
+        $('head').prepend(script);
+
+    });
+}
 
 
-console.log("[feedlyconsole] loading");
+var Josh = Josh || {};
+Josh.Debug = true;
+Josh.config = {
+    history: new Josh.History(),
+    console: window.console,
+    killring: new Josh.KillRing(),
+    readline: null,
+    shell: null
+};
+Josh.config.readline = new Josh.ReadLine(Josh.config);
+Josh.config.shell = new Josh.Shell(Josh.config);
+
+
+console.log("[feedlyconsole] loading %O", Josh);
+
+
 ////////////////////////////////////////////////////////////
 // based on josh.js:gh-pages githubconsole
 (function(root, $, _) {
     Josh.FeedlyConsole = (function(root, $, _) {
-        Josh.Debug = true;
+        console.debug("[Josh.FeedlyConsole]root %O %o", root, root);
         // Enable console debugging, when Josh.Debug is set and there is a console object on the document root.
-        var _console = (Josh.Debug && root.console) ? root.console : {
+        
+        var _console = (Josh.Debug && window.console) ? window.console : {
             log: function() {
+            },
+            debug:function() {
             }
         };
 
@@ -22,12 +55,15 @@ console.log("[feedlyconsole] loading");
         //
         // `_self` contains all state variables for the console's operation
         var _self = {
-            shell: Josh.Shell({console: _console}),
+            shell: Josh.config.shell,
             api_version: "v3/",
             api: "unset",
             OAuth: "",
-            ui: null
+            ui: {},
+            root_commands: {}
         };
+
+
 
         // `Josh.PathHandler` is attached to `Josh.Shell` to provide basic file system navigation.
         _self.pathhandler = new Josh.PathHandler(_self.shell, {console: _console});
@@ -99,13 +135,17 @@ console.log("[feedlyconsole] loading");
         // Adding Commands to the Console
         // ==============================
 
+        function addCommandHandler(name, map) {
+            _self.shell.setCommandHandler(name, map);
+            _self.root_commands[name] = map;
+        }
         //<section id='cmd.user'/>
 
         // profile
         // -----------------
 
         // The `profile` command is used to display information about the current user
-        _self.shell.setCommandHandler("profile", {
+        addCommandHandler("profile", {
 
             // `exec` handles the execution of the command.
             exec: function(cmd, args, callback) {
@@ -117,6 +157,7 @@ console.log("[feedlyconsole] loading");
                         return err("api request failed to get profile");
                     }
                     _self.profile = profile;
+                    _console.debug("[Josh.FeedlyConsole]profile %O cmd %O args %O", profile, cmd, args);
                     return callback(_self.shell.templates.profile({profile: _self.profile}));
                 });
             }
@@ -178,65 +219,6 @@ console.log("[feedlyconsole] loading");
             }
         });
 
-        //<section id='cmd.branch'/>
-
-        // branch [ -l | branchname ]
-        // --------------------------
-
-        // The `branch` command is used to switch or list branches for the current repository.
-        _self.shell.setCommandHandler("branch", {
-
-            // `exec` handles the execution of the command.
-            exec: function(cmd, args, callback) {
-
-                // Given no arguments, it simply returns the current branch, which will be rendered by the shell.
-                if(!args || args.length === 0) {
-                    return callback(_self.branch);
-                }
-                var branch = args[0];
-
-                // Given the argument `-l`, it lists all branches for the current repo. This information is lazily
-                // initialized via `ensureBranches`.
-                if(branch === '-l') {
-                    return ensureBranches(
-                        function(msg) {
-                            callback(_self.shell.templates.branches_error({msg: msg}));
-                        },
-                        function() {
-                            return callback(_self.shell.templates.branches({branches: _self.branches}));
-                        }
-                    );
-                }
-
-                // Owherwise, the current branch is switched by fetching the root directory for the new branch, and on success,
-                // setting `_self.branch` and setting the current pathandler node to the root directory fetched.
-                return getDir(_self.repo.full_name, branch, "/", function(node) {
-                    if(!node) {
-                        callback(_self.shell.templates.branch_error({name: branch, msg: "unable to load root directory for branch"}));
-                    }
-                    _self.branch = branch;
-                    _self.pathhandler.current = node;
-                    _self.root = node;
-                    callback();
-                });
-            },
-
-            // `completion` handles `TAB` completion on a partial branch name. The list of possible branches is once again
-            // lazily initialized via `ensureBranches`.
-            completion: function(cmd, arg, line, callback) {
-                return ensureBranches(
-                    function() {
-                        callback();
-                    },
-                    function() {
-                        callback(_self.shell.bestMatch(arg, _.map(_self.branches, function(branch) {
-                            return branch.name;
-                        })));
-                    }
-                );
-            }
-        });
-
         //<section id='onNewPrompt'/>
 
         // This attaches a custom prompt render to the shell.
@@ -255,7 +237,7 @@ console.log("[feedlyconsole] loading");
         // `getNode` is required by `Josh.PathHandler` to provide filesystem behavior. Given a path, it is expected to return
         // a pathnode or null;
         _self.pathhandler.getNode = function(path, callback) {
-            _console.log("looking for node at: " + path);
+            _console.debug("[Josh.FeedlyConsole]looking for node at: " + path);
 
             // If the given path is empty, just return the current pathnode.
             if(!path) {
@@ -283,7 +265,7 @@ console.log("[feedlyconsole] loading");
                 }
             });
             var absolute = resolved.join('/');
-            _console.log("path to fetch: " + absolute);
+            _console.debug("[Josh.FeedlyConsole]path to fetch: " + absolute);
             return getDir(absolute, callback);
         };
 
@@ -299,21 +281,21 @@ console.log("[feedlyconsole] loading");
 
             // If the given node is a file node, no further work is required.
             if(node.isfile) {
-                _console.log("it's a file, no children");
+                _console.debug("[Josh.FeedlyConsole]it's a file, no children");
                 return callback();
             }
 
             // Otherwise, if the child nodes have already been initialized, which is done lazily, return them.
             if(node.children) {
-                _console.log("got children, let's turn them into nodes");
+                _console.debug("[Josh.FeedlyConsole]got children, let's turn them into nodes %O", node);
                 return callback(makeNodes(node.children));
             }
 
             // Finally, use `getDir` to fetch and populate the child nodes.
-            _console.log("no children, fetch them");
-            return getDir(_self.repo.full_name, _self.branch, node.path, function(detailNode) {
+            _console.debug("[Josh.FeedlyConsole] no children, fetch them %O", node);
+            return getDir(node.path, function(detailNode) {
                 node.children = detailNode.children;
-                callback(makeNodes(node.children));
+                callback(node.children);
             });
         };
 
@@ -334,7 +316,7 @@ console.log("[feedlyconsole] loading");
                     return k + "=" + v;
                 }).join("&");
             }
-            _console.log("fetching: " + url);
+            _console.debug("[Josh.FeedlyConsole]fetching: " + url);
             var request = {
                 url: url,
                 dataType: 'json',
@@ -369,43 +351,6 @@ console.log("[feedlyconsole] loading");
             });
         }
 
-        //<section id='ensureBranches'/>
-
-        // ensureBranches
-        // --------------
-
-        // This function lazily fetches the branches for the current repo from the API.
-        function ensureBranches(err, callback) {
-            get("repos/" + _self.repo.full_name + "/branches", null, function(branches) {
-                if(!branches) {
-                    return err("api request failed to return branch list");
-                }
-                _self.branches = branches;
-                return callback();
-            });
-        }
-
-        //<section id='setUser'/>
-
-        // setUser
-        // -------
-
-        // This function fetches the specified user and initializes a repository to the provided value (which may be null).
-        // one fetched by `initialzeRepos`.
-        function setUser(user_name, repo_name, err, callback) {
-            if(_self.user && _self.user.login === user_name) {
-                return callback(_self.user);
-            }
-            return get("users/" + user_name, null, function(user) {
-                if(!user) {
-                    return err("no such user");
-                }
-                return initializeRepos(user, repo_name, err, function(repo) {
-                    _self.user = user;
-                    return callback(_self.user);
-                });
-            });
-        }
 
         //<section id='initialize'/>
 
@@ -421,35 +366,89 @@ console.log("[feedlyconsole] loading");
                 }
                 _self.pathhandler.current = node;
                 _self.root = node;
-                return feedlyconsole.ready(function() {
+                // return feedlyconsole.ready(function() {
 
-                });
+                // });
             });
         }
 
-        function insertShellUI() {
-            if( $('#shell-container').length === 0 ) {
-                feedlyconsole=$("" +
-'<link rel="stylesheet" href="' + chrome.extension.getURL("stylesheets/feedlyconsole.css") + '">' +
-'<link rel="stylesheet" href="' + chrome.extension.getURL("source-code-pro.css") + '">' +
-'<script>Josh.Debug = true;</script>' +
-'<div id="consoletab" class="consoletab" style="display: hidden;"> '+
-'  Click or type <code>~</code> to show Console</div>' +
-'<div id="shell-container"> '+
-'  <div id=shell-status>...</div>' +
-'  <div id="shell-panel">' +
-'    <div>Type <code>help</code> or hit <code>TAB</code> for a list of commands. Press' +
-'      <code>Ctrl-C</code> to hide the console.' +
-'    </div>' +
-'    <div id="shell-view"></div>' +
-'  </div>' +
-'</div>');
-                //feedlyconsole.src = chrome.extension.getURL("feedlyconsole.html");
-                var target = $(document.body);
-                target.prepend(feedlyconsole);
-                console.log("[feedlyconsole] prepend at " + target.id);
-                // must be run whenever the shell-container is blown away
+
+        function doInsertShellUI() {
+            observer.disconnect();
+
+
+            file = "feedlyconsole.html";
+            _console.debug("[feedlyconsole] injecting " + file);
+
+            // insert css into head
+            $('head').prepend( $('<link/>', {
+                rel: "stylesheet",
+                type: "text/css",
+                href: chrome.extension.getURL("feedlyconsole.css")
+            }));
+            $('head').prepend( $('<link/>', {
+                rel: "stylesheet",
+                type: "text/css",
+                href: chrome.extension.getURL("stylesheets/source-code-pro.css")
+            }));
+
+            feedlyconsole = $('<div/>', {
+                'id': 'feedlyconsole'
+                }
+            ).load(chrome.extension.getURL(file), function() {
+                _console.log("[feedlyconsole] loaded %s %O readline.attach %O", file, $('#feedlyconsole'), this);
+
+
+                Josh.config.readline.attach($('#shell-panel').get(0));
+                //inject();
+
                 initializeUI();
+            });
+
+            $('body').prepend(feedlyconsole);
+
+
+
+
+        }
+
+        function mutationHandler (mutationRecords) {
+            mutationRecords.forEach ( function (mutation) {
+                target = mutation.target;
+                if( target.id === 'box' ) {
+                    type = mutation.type;
+                    name = mutation.attributeName;
+                    attr = target.attributes.getNamedItem(name);
+                    value = "";
+                    if( attr !== null ) {
+                        value = attr.value;
+                    }
+                    _console.debug( "[feedlyconsole/observer] %s: [%s]=%s on %O", type, name, value, target);
+
+                    if( name === 'class' ) {
+                        _console.debug("[feedlyconsole] mutation observer end %O", observer);
+                        doInsertShellUI();
+                        // found what we were looking for
+                        return null;
+                    }
+                }
+            });
+        }
+        var observer = new MutationObserver (mutationHandler);
+        function insertShellUI() {
+            if( $('#feedlyconsole').length === 0 ) {
+                _console.debug("[feedlyconsole] mutation observer start");
+                //            observer.disconnect();
+                target = document;
+                config = { 
+                    attributes: true, 
+                    subtree: true 
+                };
+                _console.debug(target);
+                _console.debug(observer);
+                _console.debug(config);
+                observer.observe(target, config);
+
             }
         }
         //<section id='getDir'/>
@@ -466,39 +465,41 @@ console.log("[feedlyconsole] loading");
                 path = path.substr(0, path.length - 1);
             }
 
-            if(path && path.length == 1 && path === '/') {
-                // root, each command is a path
-                var node = {
-                    name: _.last(_.filter(path.split("/"), function(x) {
-                        return x;
-                    })) || "",
+            if(!path || (path.length == 1 && path === '/')) {
+                // 0, root, each command a subdir
+                path = '/';
+                node = {
+                    name: '/',
                     path: path,
-                    children: {}
+                    children: makeRootNodes()
                 };
-                _console.log("got node at: " + node.path);
+                _console.debug("[Josh.FeedlyConsole] root node %O.", node);
                 return callback(node);
-            } else {
-                get("repos/" + repo_full_name + "/contents" + path, {ref: branch}, function(data) {
-
-                    // The API call may return either an array, indicating that the path was a directory, or an object. Since only
-                    // are stored as pathnodes, retrieving anything but an array returns null via the callback.
-                    if(Object.prototype.toString.call(data) !== '[object Array]') {
-                        _console.log("path '" + path + "' was a file");
-                        return callback();
-                    }
-
-                    // Given a directory listing, i.e. array, the current directory node is created and the API return value captured
-                    // as children so that they can later be transformed into child pathnodes, if required.
-                    var node = {
-                        name: _.last(_.filter(path.split("/"), function(x) {
-                            return x;
-                        })) || "",
+            } else { 
+                if(path && path.length > 1 && path[0] === '/') {
+                    stripped_path = path.substr(1, path.length);
+                }
+                parts = getPathParts(stripped_path);
+                if(parts.length == 1) { 
+                    name = parts[0];
+                    // 1, commands
+                    node = {
+                        name: name,
                         path: path,
-                        children: data
+                        children: null
                     };
-                    _console.log("got node at: " + node.path);
-                    return callback(node);
-                });
+                    handler = _self.root_commands[name];
+                    command = handler.exec;
+                    command("", "", function(map) {
+                        json = _self[name];
+                        _console.debug("[Josh.FeedlyConsole]to nodes: %O", json);
+                        node.children = makeJSONNodes(path, json, 'leaf');
+                        return callback(node);
+                    });
+                } else {
+                    // 2+, details
+                    _console.debug("[Josh.FeedlyConsole] not impleted, path: %s", path);
+                }
             }
         }
 
@@ -539,26 +540,6 @@ console.log("[feedlyconsole] loading");
             return repo;
         }
 
-        //<section id='setRepo'/>
-
-        // setRepo
-        // -------
-
-        // This function fetches the root directory for the specified repository and initializes the current repository
-        // state.
-        function setRepo(repo, err, callback) {
-            return getDir(repo.full_name, repo.default_branch, "/", function(node) {
-                if(!node) {
-                    return err("could not initialize root directory of repository '" + repo.full_name + "'");
-                }
-                _console.log("setting repo to '" + repo.name + "'");
-                _self.repo = repo;
-                _self.branch = repo.default_branch;
-                _self.pathhandler.current = node;
-                _self.root = node;
-                return callback(repo);
-            });
-        }
 
         //<section id='getPathParts'/>
 
@@ -585,7 +566,29 @@ console.log("[feedlyconsole] loading");
                 return {
                     name: node.name,
                     path: "/" + node.path,
-                    isFile: node.type === 'file'
+                    isFile: node.type === 'leaf'
+                };
+            });
+        }
+
+        function makeJSONNodes(path, children, type) {
+            return _.map(children, function(value, key, list) {
+                name = [key, value].join(':');
+                return {
+                    name: name,
+                    path: path + '/' + name,
+                    isFile: type === 'leaf'
+                };
+            });
+        }
+        
+        function makeRootNodes() {
+            return _.map(_self.root_commands, function(value, key, list) {
+                return {
+                    name: key,
+                    path: "/" + key,
+                    type: 'command',
+                    isFile: 'command' === 'leaf'
                 };
             });
         }
@@ -601,7 +604,7 @@ console.log("[feedlyconsole] loading");
         // This function is a lazy way with giving up if some request failed during intialization, forcing the user
         // to reload to retry.
         function initializationError(context, msg) {
-            _console.log("[" + context + "] failed to initialize: " + msg);
+            _console.debug("[" + context + "] failed to initialize: " + msg);
             alert("unable to initialize shell. Encountered a problem talking to github api. Try reloading the page");
         }
 
@@ -613,10 +616,13 @@ console.log("[feedlyconsole] loading");
         // After a current user and repo have been set, this function initializes the UI state to allow the shell to be
         // shown and hidden.
         function initializeUI() {
-            _console.log("activating");
+            _console.log("[Josh.FeedlyConsole] initializeUI");
 
             // We grab the `consoletab` and wire up hover behavior for it.
             var $consoletab = $('#consoletab');
+            if( $consoletab.length === 0 ) {
+                console.error('failed to find %s', $consoletab.selector);
+            }
             $consoletab.hover(function() {
                 $consoletab.addClass('consoletab-hover');
                 $consoletab.removeClass('consoletab');
@@ -651,7 +657,6 @@ console.log("[feedlyconsole] loading");
             }
 
             function activateAndShow() {
-                insertShellUI();
                 $consoletab.slideUp();
                 _self.shell.activate();
                 $consolePanel.slideDown();
@@ -664,7 +669,6 @@ console.log("[feedlyconsole] loading");
                 $consolePanel.blur();
                 $consoletab.slideDown();
             }
-            _self.ui = {};
             _self.ui.toggleActivateAndShow = toggleActivateAndShow;
             _self.ui.activateAndShow = activateAndShow;
             _self.ui.hideAndDeactivate = hideAndDeactivate;
@@ -674,7 +678,7 @@ console.log("[feedlyconsole] loading");
         }
 
 
-        _console.log("[feedlyconsole] initialize");        
+        _console.log("[Josh.FeedlyConsole] initialize");        
         initialize();
         // wire up pageAction to toggle console
         // kind of a mess, but we only want to create one listener, 
@@ -682,33 +686,34 @@ console.log("[feedlyconsole] loading");
         // feedly will blow away console that are added to early
         chrome.runtime.onMessage.addListener(
             function(request, sender, sendResponse) {
-                _console.log("[feedlyconsole] msg:" + request.msg);
+                _console.debug("[feedlyconsole] msg:" + request.msg);
 
                 if ( request.action === "icon_active" ) {
                     url_array = request.url.split("/");
                     url = url_array[0] + "//" + url_array[2] + "/" + _self.api_version;
-                    _console.log("[feedlyconsole] set api:" + url);
+                    _console.debug("[feedlyconsole] set api:" + url);
                     _self.api = url;
                 } else if ( request.action === "toggle_console" ) {
-                    // make sure console hasn't been wiped during page loading
-                    if( $('#shell-container').length === 0 ) {
-                        initialize();
-                        _self.ui.activateAndShow();
+                    if(_self.ui.toggleActivateAndShow === undefined) {
+                        window.console.warn("[feedlyconsole] ui not yet ready");
                     } else {
                         _self.ui.toggleActivateAndShow();
                     }
                 } else if ( request.action === "cookie_feedlytoken" ) {
                     _self.OAuth = request.feedlytoken;
-                    _console.log("[feedlyconsole] token " + _self.OAuth);
+                    _console.debug("[feedlyconsole] token " + 
+                                   _self.OAuth.slice(0,8) + "..." );
                 } else {
-                    _console.log("[feedlyconsole] unknown action:" + request.action);
+                    _console.debug("[feedlyconsole] unknown action:" + request.action);
                 }
                 sendResponse({ "action": "ack" });
             });
-            
+            return _self;
     })(root, $, _);
-})
-(this, $, _);
+    console.log("[feedlyconsole] loaded %O", Josh.FeedlyConsole);
+})(this, $, _);
+console.log("[feedlyconsole] loaded %O", Josh);
+
 
 
 
