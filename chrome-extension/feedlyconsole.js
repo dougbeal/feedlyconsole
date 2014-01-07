@@ -168,6 +168,76 @@ console.log("[feedlyconsole] loading %O", Josh);
                                //'opml'
                                ];
 
+        /*
+          simple map:
+          profile, preferences 
+        */
+        /*
+          array of maps:
+          tags, subscriptions, categories, topics
+        */
+        /*
+          tags
+          [
+              {
+                  "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/global.saved"
+              },
+              {
+                  "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/tech",
+                  "label": "tech"
+              },
+              {
+                  "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/inspiration",
+                  "label": "inspiration"
+              }
+          ]
+        */
+        /*
+          subscriptions
+        [
+            {
+                "id": "feed/http://feeds.feedburner.com/design-milk",
+                "title": "Design Milk",
+                "categories": [
+                    {
+                        "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/design",
+                        "label": "design"
+                    },
+                    {
+                        "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/global.must",
+                        "label": "must reads"
+                    }
+                ],
+                "sortid": "26152F8F",
+                "updated": 1367539068016,
+                "website": "http://design-milk.com"
+            },
+            {
+                "id": "feed/http://5secondrule.typepad.com/my_weblog/atom.xml",
+                "title": "5 second rule",
+                "categories": [
+
+                ],
+                "sortid": "26152F8F",
+                "updated": 1367539068016,
+                "website": "http://5secondrule.typepad.com/my_weblog/"
+            },
+            {
+                "id": "feed/http://feed.500px.com/500px-editors",
+                "title": "500px: Editors' Choice",
+                "categories": [
+                    {
+                        "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/photography",
+                        "label": "photography"
+                    }
+                ],
+                "sortid": "26152F8F",
+                "updated": 1367539068016,
+                "website": "http://500px.com/editors"
+            }
+        ]
+        */
+        
         function addCommandHandler(name, map) {
             _self.shell.setCommandHandler(name, map);
             _self.root_commands[name] = map;
@@ -176,61 +246,7 @@ console.log("[feedlyconsole] loading %O", Josh);
             addCommandHandler(command, buildExecCommandHandler(command));
         });
 
-        //<section id='cmd.repo'/>
 
-        // repo [ -l | reponame ]
-        // ----------------------
-
-        // The `repo` command is used to display information about the current repo or switch to. It
-        _self.shell.setCommandHandler("repo", {
-
-            // `exec` handles the execution of the command.
-            exec: function(cmd, args, callback) {
-
-                // Given no arguments, it renders information about the current repo.
-                if(!args || args.length === 0) {
-                    return callback(_self.shell.templates.repo({repo: _self.repo}));
-                }
-                var name = args[0];
-
-                // Given the argument `-l`, it lists all repos for the current user. This information was fetched at user
-                // initialization
-                if(name === '-l') {
-                    return callback(_self.shell.templates.repos({repos: _self.repos}));
-                }
-
-                // Otherwise, the argument is assumed to a repo name, which `getRepo` uses to fetch the repository's information
-                // from the data in `_self.repos`, if possible.
-                var repo = getRepo(name, _self.repos);
-
-                // If there is no matching repo, it renders an error.
-                if(!repo) {
-                    return callback(_self.shell.templates.repo_error({name: name, msg: 'no such repo'}));
-                }
-
-                // Given a valid repo, `setRepo` initializes the repo (i.e. fetching the root directory) and renders the repo
-                // information.
-                return setRepo(repo,
-                               function(msg) {
-                                   return callback(_self.shell.templates.repo_error({name: name, msg: msg}));
-                               },
-                               function(repo) {
-                                   if(!repo) {
-                                       return callback(_self.shell.templates.repo_not_found({repo: name, user: _self.user.login}));
-                                   }
-                                   return callback(_self.shell.templates.repo({repo: _self.repo}));
-                               }
-                              );
-            },
-
-            // `completion` uses `_self.repo` and `Josh.Shell.bestMatch` to try and match the partial information to the possible
-            // matching repositories.
-            completion: function(cmd, arg, line, callback) {
-                callback(_self.shell.bestMatch(arg, _.map(_self.repos, function(repo) {
-                    return repo.name;
-                })));
-            }
-        });
 
         //<section id='onNewPrompt'/>
 
