@@ -4,3 +4,17 @@ _site/
 .bundle/
 Gemfile.lock
 .ropeproject/
+/chrome-extension/javascript/history.js
+/chrome-extension/javascript/jquery-ui.min.js
+/chrome-extension/javascript/jquery-ui.min.map
+/chrome-extension/javascript/jquery.js
+/chrome-extension/javascript/jquery.min.js
+/chrome-extension/javascript/jquery.min.map
+/chrome-extension/javascript/killring.js
+/chrome-extension/javascript/optparse.js
+/chrome-extension/javascript/pathhandler.js
+/chrome-extension/javascript/readline.js
+/chrome-extension/javascript/shell.js
+/chrome-extension/javascript/underscore-min.js
+/chrome-extension/stylesheets/jquery-ui.css
+/chrome-extension/stylesheets/source-code-pro.css
