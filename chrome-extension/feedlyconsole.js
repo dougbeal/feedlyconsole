@@ -93,21 +93,8 @@ console.log("[feedlyconsole] loading %O", Josh);
         _self.shell.templates.default_template = _.template("<div><%= JSON.stringify(data) %></div>");
 
         //**templates.profile**
-        // {
-        //   "id": "c805fcbf-3acf-4302-a97e-d82f9d7c897f",
-        //   "email": "jim.smith@gmail.com",
-        //   "givenName": "Jim",
-        //   "familyName": "Smith",
-        //   "picture": "https://www.google.com/profile_images/1771656873/bigger.jpg",
-        //   "gender": "male",
-        //   "locale": "en",
-        //   "reader": "9080770707070700",
-        //   "google": "115562565652656565656",
-        //   "twitter": "jimsmith",
-        //   "facebook": "",
-        //   "wave": "2013.7"
-        // }
-        // {"id":"10f8ec78-deba-43d0-862e-d3247d252a1a","client":"Feedly sandbox client","familyName":"Beal","givenName":"Douglas","google":"106867699444780221078","email":"dougbeal@gmail.com","gender":"male","picture":"https://lh6.googleusercontent.com/-cTmUKJfU-bU/AAAAAAAAAAI/AAAAAAAAIfY/iuvpdEN5tlM/photo.jpg?sz=50","wave":"2013.52","created":1388188400136,"evernoteConnected":false,"pocketConnected":false,"wordPressConnected":false,"locale":"en","fullName":"Douglas Beal"}
+
+        // user information
         _self.shell.templates.profile = _.template("<div class='userinfo'>" +
                                                    "<img src='<%=profile.picture%>' style='float:right;'/>" +
                                                    "<table>" +
@@ -134,17 +121,14 @@ console.log("[feedlyconsole] loading %O", Josh);
                 exec: function(cmd, args, callback) {
                     var template = _self.shell.templates[command_name];
                     var template_args = {};
-                    var cache = _self[command_name];
+
                     if ( template === undefined ) {
                         template = _self.shell.templates.default_template;
                         template_args.data = cache;
                         _console.log("[Josh.FeedlyConsole] using default template for %s", command_name);
                     }
 
-                    if(cache) {
-                        template_args[command_name] = cache;
-                        return callback(template(template_args));
-                    }
+
                     get(command_name, null, function(data) {
                         if(!data) {
                             return err("api request failed to get data");
@@ -270,6 +254,11 @@ console.log("[feedlyconsole] loading %O", Josh);
         // `args`.
         function get(resource, args, callback) {
             var url = _self.api + resource;
+            var cache = _self[resource];
+
+            if(cache) {
+                return callback(cache);
+            }
             if(chrome.extension === undefined) {
                 // not embedded, demo mode
                 switch(resource) {
@@ -568,7 +557,7 @@ console.log("[feedlyconsole] loading %O", Josh);
                     command("", "", function(map) {
                         var json = _self[name];
                         _console.debug("[Josh.FeedlyConsole] json to nodes %O.", json);
-                        node.children = makeJSONNodes(path, json, 'leaf');
+                        node.children = makeJSONNodes(path, json, name);
                         return callback(node);
                     });
                 } else {
