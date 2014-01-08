@@ -13,6 +13,7 @@
     font-family: 'Source Code Pro', sans-serif;
     font-size: 0.9em;
 }
+
 #shell-panel {
     overflow: scroll;
     overflow-x: hidden;
@@ -38,6 +39,8 @@ ul.widelist li {
 }
 .userinfo table {
     width: 75%;
+    color: #00fe00;
+    font-size: 13px;
 }
 
 #consoletab {
