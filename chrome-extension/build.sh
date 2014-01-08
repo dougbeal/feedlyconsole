@@ -7,6 +7,7 @@ function copy_chmod() {
     done
 }
 (
+    mkdir -p javascript
     cd javascript
     filenames=( "readline" "history" "killring" "pathhandler" "shell" )
     source_dir=../../josh.js/js
@@ -35,6 +36,7 @@ function copy_chmod() {
     chmod a-w *
 )
 (
+    mkdir -p stylesheets
     cd stylesheets
     if [ ! -e source-code-pro.css ]; then
         curl -q "http://fonts.googleapis.com/css?family=Source+Code+Pro" > source-code-pro.css
