@@ -762,7 +762,10 @@ console.log("[feedlyconsole] loading %O", Josh);
                 });
         } else {
             // not extension
-            $(document).ready(function() {initializeUI();});
+            $(document).ready(function() {
+                initializeUI();
+                _self.ui.activateAndShow();
+            });
         }
         return _self;
     })(root, $, _);
