@@ -119,21 +119,16 @@ console.log("[feedlyconsole] loading %O", Josh);
             return {
                 // `exec` handles the execution of the command.
                 exec: function(cmd, args, callback) {
-                    var template = _self.shell.templates[command_name];
-                    var template_args = {};
-
-                    if ( template === undefined ) {
-                        template = _self.shell.templates.default_template;
-                        template_args.data = cache;
-                        _console.log("[Josh.FeedlyConsole] using default template for %s", command_name);
-                    }
-
-
                     get(command_name, null, function(data) {
                         if(!data) {
                             return err("api request failed to get data");
                         }
-                        template_args.data = template_args[command_name] = _self[command_name] = data;
+                        var template = _self.shell.templates[command_name] || _self.shell.templates.default_template;
+
+                        var template_args = {
+                            command_name: data,
+                            'data': data
+                        };
                         _console.debug("[Josh.FeedlyConsole] data %O cmd %O args %O", data, cmd, args);
                         return callback(template(template_args));
                     });
@@ -259,11 +254,16 @@ console.log("[feedlyconsole] loading %O", Josh);
             if(cache) {
                 return callback(cache);
             }
+            function cacheCallback(value) {
+                _self[resource] = value;
+                callback(value);
+            }
+            
             if(chrome.extension === undefined) {
                 // not embedded, demo mode
                 switch(resource) {
                 case 'tags':
-                    return callback([
+                    return cacheCallback([
                         {
                             "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/global.saved"
                         },
@@ -277,7 +277,7 @@ console.log("[feedlyconsole] loading %O", Josh);
                         }
                     ]);
                 case 'subscriptions':
-                    return callback([
+                    return cacheCallback([
                         {
                             "id": "feed/http://feeds.feedburner.com/design-milk",
                             "title": "Design Milk",
@@ -320,7 +320,7 @@ console.log("[feedlyconsole] loading %O", Josh);
                         }
                     ]);
                 case 'profile':
-                    return callback({
+                    return cacheCallback({
                         "id": "c805fcbf-3acf-4302-a97e-d82f9d7c897f",
                         "email": "jim.smith@gmail.com",
                         "givenName": "Jim",
@@ -335,7 +335,7 @@ console.log("[feedlyconsole] loading %O", Josh);
                         "wave": "2013.7"
                     });
                 case 'categories':
-                    return callback([
+                    return cacheCallback([
                         {
                             "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/tech",
                             "label": "tech"
@@ -346,7 +346,7 @@ console.log("[feedlyconsole] loading %O", Josh);
                         }
                     ]);
                 case 'topics':
-                    return callback([
+                    return cacheCallback([
                         {
                             "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/topic/arduino",
                             "interest": "high",
@@ -361,7 +361,7 @@ console.log("[feedlyconsole] loading %O", Josh);
                         }
                     ]);
                 case 'preferences':
-                    return callback({
+                    return cacheCallback({
                         "autoMarkAsReadOnSelect": "50",
                         "category/reviews/entryOverviewSize": "0",
                         "subscription/feed/http://feeds.engadget.com/weblogsinc/engadget/entryOverviewSize": "4",
@@ -409,7 +409,7 @@ console.log("[feedlyconsole] loading %O", Josh);
                     if(status !== 'success') {
                         return callback();
                     }
-                    return callback(response);
+                    return cacheCallback(response);
                 });
             }
         }
@@ -552,7 +552,7 @@ console.log("[feedlyconsole] loading %O", Josh);
                         path: path,
                         children: null
                     };
-
+                    // implicitly call command as part of path
                     var command = handler.exec;
                     command("", "", function(map) {
                         var json = _self[name];
