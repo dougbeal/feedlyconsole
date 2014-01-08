@@ -1,11 +1,9 @@
 function inject() {
     // inject after readline is initilized
     $(document).ready( function() {
-        file = 'inject.js';
+        var file = 'inject.js';
         // supress keydown, keypress when console is active
         console.debug("[feedlyconsole] injecting " + file);
-        // var script = $('<script type="text/javascript">'+
-        //                code + "</script>");
         var script = $('<script/>', {
             src: chrome.extension.getURL(file),
             type: 'text/javascript'
@@ -20,7 +18,7 @@ function inject() {
 }
 
 
-var Josh = Josh || {};
+Josh = Josh || {};
 Josh.Debug = true;
 Josh.config = {
     history: new Josh.History(),
@@ -42,7 +40,7 @@ console.log("[feedlyconsole] loading %O", Josh);
     Josh.FeedlyConsole = (function(root, $, _) {
         console.debug("[Josh.FeedlyConsole]root %O %o", root, root);
         // Enable console debugging, when Josh.Debug is set and there is a console object on the document root.
-        
+
         var _console = (Josh.Debug && window.console) ? window.console : {
             log: function() {
             },
@@ -88,7 +86,7 @@ console.log("[feedlyconsole] loading %O", Josh);
         _self.shell.templates.not_found = _.template("<div><%=cmd%>: <%=path%>: No such directory</div>");
 
         //**templates.rateLimitTemplate**
-        
+
         // rate limiting will be added later to feedly api
         _self.shell.templates.rateLimitTemplate = _.template("<%=remaining%>/<%=limit%>");
 
@@ -119,7 +117,7 @@ console.log("[feedlyconsole] loading %O", Josh);
 
                                                    "</table>" +
                                                    "</div>"
-                                                  ); 
+                                                  );
 
 
 
@@ -134,9 +132,9 @@ console.log("[feedlyconsole] loading %O", Josh);
             return {
                 // `exec` handles the execution of the command.
                 exec: function(cmd, args, callback) {
-                    template = _self.shell.templates[command_name];
-                    template_args = {};
-                    cache = _self[command_name];
+                    var template = _self.shell.templates[command_name];
+                    var template_args = {};
+                    var cache = _self[command_name];
                     if ( template === undefined ) {
                         template = _self.shell.templates.default_template;
                         template_args.data = cache;
@@ -168,76 +166,8 @@ console.log("[feedlyconsole] loading %O", Josh);
                                //'opml'
                                ];
 
-        /*
-          simple map:
-          profile, preferences 
-        */
-        /*
-          array of maps:
-          tags, subscriptions, categories, topics
-        */
-        /*
-          tags
-          [
-              {
-                  "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/global.saved"
-              },
-              {
-                  "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/tech",
-                  "label": "tech"
-              },
-              {
-                  "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/inspiration",
-                  "label": "inspiration"
-              }
-          ]
-        */
-        /*
-          subscriptions
-        [
-            {
-                "id": "feed/http://feeds.feedburner.com/design-milk",
-                "title": "Design Milk",
-                "categories": [
-                    {
-                        "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/design",
-                        "label": "design"
-                    },
-                    {
-                        "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/global.must",
-                        "label": "must reads"
-                    }
-                ],
-                "sortid": "26152F8F",
-                "updated": 1367539068016,
-                "website": "http://design-milk.com"
-            },
-            {
-                "id": "feed/http://5secondrule.typepad.com/my_weblog/atom.xml",
-                "title": "5 second rule",
-                "categories": [
 
-                ],
-                "sortid": "26152F8F",
-                "updated": 1367539068016,
-                "website": "http://5secondrule.typepad.com/my_weblog/"
-            },
-            {
-                "id": "feed/http://feed.500px.com/500px-editors",
-                "title": "500px: Editors' Choice",
-                "categories": [
-                    {
-                        "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/photography",
-                        "label": "photography"
-                    }
-                ],
-                "sortid": "26152F8F",
-                "updated": 1367539068016,
-                "website": "http://500px.com/editors"
-            }
-        ]
-        */
-        
+
         function addCommandHandler(name, map) {
             _self.shell.setCommandHandler(name, map);
             _self.root_commands[name] = map;
@@ -246,7 +176,7 @@ console.log("[feedlyconsole] loading %O", Josh);
             addCommandHandler(command, buildExecCommandHandler(command));
         });
 
-
+        _self.root_commands.tags.help = "help here";
 
         //<section id='onNewPrompt'/>
 
@@ -266,7 +196,7 @@ console.log("[feedlyconsole] loading %O", Josh);
         // `getNode` is required by `Josh.PathHandler` to provide filesystem behavior. Given a path, it is expected to return
         // a pathnode or null;
         _self.pathhandler.getNode = function(path, callback) {
-            _console.debug("[Josh.FeedlyConsole]looking for node at: " + path);
+            _console.debug("[Josh.FeedlyConsole] looking for node at %s.", path);
 
             // If the given path is empty, just return the current pathnode.
             if(!path) {
@@ -309,14 +239,14 @@ console.log("[feedlyconsole] loading %O", Josh);
         _self.pathhandler.getChildNodes = function(node, callback) {
 
             // If the given node is a file node, no further work is required.
-            if(node.isfile) {
-                _console.debug("[Josh.FeedlyConsole]it's a file, no children");
+            if(node.isFile) {
+                _console.debug("[Josh.FeedlyConsole] it's a file, no children %O", node);
                 return callback();
             }
 
             // Otherwise, if the child nodes have already been initialized, which is done lazily, return them.
             if(node.children) {
-                _console.debug("[Josh.FeedlyConsole]got children, let's turn them into nodes %O", node);
+                _console.debug("[Josh.FeedlyConsole] got children, let's turn them into nodes %O", node);
                 return callback(makeNodes(node.children));
             }
 
@@ -340,44 +270,159 @@ console.log("[feedlyconsole] loading %O", Josh);
         // `args`.
         function get(resource, args, callback) {
             var url = _self.api + resource;
-            if(args) {
-                url += "?" + _.map(args,function(v, k) {
-                    return k + "=" + v;
-                }).join("&");
-            }
-            _console.debug("[Josh.FeedlyConsole]fetching: " + url);
-            var request = {
-                url: url,
-                dataType: 'json',
-                headers: { "Authorization": "OAuth " + _self.OAuth },
-                xhrFields: {
-                    withCredentials: true
-                }
-            };
-            $.ajax(request).done(function(response, status, xhr) {
+            if(chrome.extension === undefined) {
+                // not embedded, demo mode
+                switch(resource) {
+                case 'tags':
+                    return callback([
+                        {
+                            "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/global.saved"
+                        },
+                        {
+                            "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/tech",
+                            "label": "tech"
+                        },
+                        {
+                            "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/inspiration",
+                            "label": "inspiration"
+                        }
+                    ]);
+                case 'subscriptions':
+                    return callback([
+                        {
+                            "id": "feed/http://feeds.feedburner.com/design-milk",
+                            "title": "Design Milk",
+                            "categories": [
+                                {
+                                    "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/design",
+                                    "label": "design"
+                                },
+                                {
+                                    "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/global.must",
+                                    "label": "must reads"
+                                }
+                            ],
+                            "sortid": "26152F8F",
+                            "updated": 1367539068016,
+                            "website": "http://design-milk.com"
+                        },
+                        {
+                            "id": "feed/http://5secondrule.typepad.com/my_weblog/atom.xml",
+                            "title": "5 second rule",
+                            "categories": [
 
-                // Every response from the API includes rate limiting headers, as well as an indicator injected by the API proxy
-                // whether the request was done with authentication. Both are used to display request rate information and a
-                // link to authenticate, if required.
-                var ratelimit = {
-                    remaining: parseInt(xhr.getResponseHeader("X-RateLimit-Remaining")),
-                    limit: parseInt(xhr.getResponseHeader("X-RateLimit-Limit")),
-                    authenticated: xhr.getResponseHeader('Authenticated') === 'true'
+                            ],
+                            "sortid": "26152F8F",
+                            "updated": 1367539068016,
+                            "website": "http://5secondrule.typepad.com/my_weblog/"
+                        },
+                        {
+                            "id": "feed/http://feed.500px.com/500px-editors",
+                            "title": "500px: Editors' Choice",
+                            "categories": [
+                                {
+                                    "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/photography",
+                                    "label": "photography"
+                                }
+                            ],
+                            "sortid": "26152F8F",
+                            "updated": 1367539068016,
+                            "website": "http://500px.com/editors"
+                        }
+                    ]);
+                case 'profile':
+                    return callback({
+                        "id": "c805fcbf-3acf-4302-a97e-d82f9d7c897f",
+                        "email": "jim.smith@gmail.com",
+                        "givenName": "Jim",
+                        "familyName": "Smith",
+                        "picture": "https://www.google.com/profile_images/1771656873/bigger.jpg",
+                        "gender": "male",
+                        "locale": "en",
+                        "reader": "9080770707070700",
+                        "google": "115562565652656565656",
+                        "twitter": "jimsmith",
+                        "facebook": "",
+                        "wave": "2013.7"
+                    });
+                case 'categories':
+                    return callback([
+                        {
+                            "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/tech",
+                            "label": "tech"
+                        },
+                        {
+                            "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/design",
+                            "label": "design"
+                        }
+                    ]);
+                case 'topics':
+                    return callback([
+                        {
+                            "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/topic/arduino",
+                            "interest": "high",
+                            "updated": 1367539068016,
+                            "created": 1367539068016
+                        },
+                        {
+                            "id": "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/topic/rock climbing",
+                            "interest": "low",
+                            "updated": 1367539068016,
+                            "created": 1367539068016
+                        }
+                    ]);
+                case 'preferences':
+                    return callback({
+                        "autoMarkAsReadOnSelect": "50",
+                        "category/reviews/entryOverviewSize": "0",
+                        "subscription/feed/http://feeds.engadget.com/weblogsinc/engadget/entryOverviewSize": "4",
+                        "subscription/feed/http://www.yatzer.com/feed/index.php/hideReadArticlesFilter": "off",
+                        "category/photography/entryOverviewSize": "6",
+                        "subscription/feed/http://feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
+                    });
+                }
+
+            } else {
+
+                if(args) {
+                    url += "?" + _.map(args,function(v, k) {
+                        return k + "=" + v;
+                    }).join("&");
+                }
+                _console.debug("[Josh.FeedlyConsole] fetching %s.", url);
+                var request = {
+                    url: url,
+                    dataType: 'json',
+                    headers: { "Authorization": "OAuth " + _self.OAuth },
+                    xhrFields: {
+                        withCredentials: true
+                    }
                 };
-                $('#ratelimit').html(_self.shell.templates.rateLimitTemplate(ratelimit));
-                if(ratelimit.remaining === 0) {
-                    alert("Whoops, you've hit the github rate limit. You'll need to authenticate to continue");
-                    _self.shell.deactivate();
-                    return null;
-                }
+                $.ajax(request).done(function(response, status, xhr) {
 
-                // For simplicity, this tutorial trivially deals with request failures by just returning null from this function
-                // via the callback.
-                if(status !== 'success') {
-                    return callback();
-                }
-                return callback(response);
-            });
+                    // Every response from the API includes rate limiting headers, as well as an indicator injected by the API proxy
+                    // whether the request was done with authentication. Both are used to display request rate information and a
+                    // link to authenticate, if required.
+                    var ratelimit = {
+                        remaining: parseInt(xhr.getResponseHeader("X-RateLimit-Remaining")),
+                        limit: parseInt(xhr.getResponseHeader("X-RateLimit-Limit")),
+                        authenticated: xhr.getResponseHeader('Authenticated') === 'true'
+                    };
+                    $('#ratelimit').html(_self.shell.templates.rateLimitTemplate(ratelimit));
+                    if(ratelimit.remaining === 0) {
+                        alert("Whoops, you've hit the github rate limit. You'll need to authenticate to continue");
+                        _self.shell.deactivate();
+                        return null;
+                    }
+
+                    // For simplicity, this tutorial trivially deals with request failures by just returning null from this function
+                    // via the callback.
+                    if(status !== 'success') {
+                        return callback();
+                    }
+                    return callback(response);
+                });
+            }
         }
 
 
@@ -403,7 +448,7 @@ console.log("[feedlyconsole] loading %O", Josh);
 
         function insertCSSLink(name) {
             // insert css into head
-            $('head').prepend( $('<link/>', {
+            $('head').append( $('<link/>', {
                 rel: "stylesheet",
                 type: "text/css",
                 href: chrome.extension.getURL(name)
@@ -412,44 +457,35 @@ console.log("[feedlyconsole] loading %O", Josh);
         function doInsertShellUI() {
             observer.disconnect();
 
+            var file = "feedlyconsole.html";
+            _console.debug("[feedlyconsole] injecting %s.", file);
 
-            file = "feedlyconsole.html";
-            _console.debug("[feedlyconsole] injecting " + file);
-
-            insertCSSLink("feedlyconsole.css");
-            insertCSSLink("stylesheets/source-code-pro.css");
             insertCSSLink("stylesheets/styles.css");
+            insertCSSLink("stylesheets/source-code-pro.css");
             insertCSSLink("stylesheets/jquery-ui.css");
+            insertCSSLink("feedlyconsole.css");
 
-            feedlyconsole = $('<div/>', {
+            var feedlyconsole = $('<div/>', {
                 'id': 'feedlyconsole'
                 }
             ).load(chrome.extension.getURL(file), function() {
-                _console.log("[feedlyconsole] loaded %s %O readline.attach %O", file, $('#feedlyconsole'), this);
-
-
+                _console.log("[feedlyconsole] loaded %s %O readline.attach %O.", file, $('#feedlyconsole'), this);
                 Josh.config.readline.attach($('#shell-panel').get(0));
-                //inject();
-
                 initializeUI();
             });
 
             $('body').prepend(feedlyconsole);
-
-
-
-
         }
 
         function mutationHandler (mutationRecords) {
             _found = false;
             mutationRecords.forEach ( function (mutation) {
-                target = mutation.target;
+                var target = mutation.target;
                 if( target.id === 'box' ) {
-                    type = mutation.type;
-                    name = mutation.attributeName;
-                    attr = target.attributes.getNamedItem(name);
-                    value = "";
+                    var type = mutation.type;
+                    var name = mutation.attributeName;
+                    var attr = target.attributes.getNamedItem(name);
+                    var value = "";
                     if( attr !== null ) {
                         value = attr.value;
                     }
@@ -457,9 +493,9 @@ console.log("[feedlyconsole] loading %O", Josh);
 
                     // not sure if wide will always be set, so trigger on the next mod
                     if( !_found &&
-                        ((name === 'class' && 
+                        ((name === 'class' &&
                         value.indexOf("wide") != -1 ) ||
-                        (name === '_pageid' && 
+                        (name === '_pageid' &&
                          value.indexOf("rot21") != -1 )))
                     {
                         _console.debug("[feedlyconsole] mutation observer end %O", observer);
@@ -471,21 +507,19 @@ console.log("[feedlyconsole] loading %O", Josh);
                 }
             });
         }
-        var observer = new MutationObserver (mutationHandler);
+        observer = new MutationObserver (mutationHandler);
         function insertShellUI() {
             if( $('#feedlyconsole').length === 0 ) {
                 _console.debug("[feedlyconsole] mutation observer start");
-                //            observer.disconnect();
-                target = document;
-                config = { 
-                    attributes: true, 
-                    subtree: true 
+                var target = document;
+                var config = {
+                    attributes: true,
+                    subtree: true
                 };
                 _console.debug(target);
                 _console.debug(observer);
                 _console.debug(config);
                 observer.observe(target, config);
-
             }
         }
         //<section id='getDir'/>
@@ -495,16 +529,16 @@ console.log("[feedlyconsole] loading %O", Josh);
 
         // This function function fetches the directory listing for a path on a given repo and branch.
         function getDir(path, callback) {
-
-            // Although paths in the internal representation may have a trailing `/`, it has to be removed before using it
-            // as the argument for an API request.
+            var node;
+            var name;
+            // remove trailing '/' for API requests.
             if(path && path.length > 1 && path[path.length - 1] === '/') {
                 path = path.substr(0, path.length - 1);
             }
 
             if(!path || (path.length == 1 && path === '/')) {
-                // 0, root, each command a subdir
-                path = '/';
+                // item 0, root, each command a subdir
+                name = '/';
                 node = {
                     name: '/',
                     path: path,
@@ -512,69 +546,36 @@ console.log("[feedlyconsole] loading %O", Josh);
                 };
                 _console.debug("[Josh.FeedlyConsole] root node %O.", node);
                 return callback(node);
-            } else { 
-                if(path && path.length > 1 && path[0] === '/') {
-                    stripped_path = path.substr(1, path.length);
+            } else {
+                var parts = getPathParts(path);
+                // leading '/' produces empty item
+                if(parts[0] === "") {
+                    parts = parts.slice(1);
                 }
-                parts = getPathParts(stripped_path);
-                if(parts.length == 1) { 
-                    name = parts[0];
-                    // 1, commands
+                name = parts[0];
+                var handler = _self.root_commands[name];
+                if(handler === undefined) {
+                    return callback();
+                } else if(parts.length == 1) {
+                    // item 1, commands
                     node = {
                         name: name,
                         path: path,
                         children: null
                     };
-                    handler = _self.root_commands[name];
-                    command = handler.exec;
+
+                    var command = handler.exec;
                     command("", "", function(map) {
-                        json = _self[name];
-                        _console.debug("[Josh.FeedlyConsole]to nodes: %O", json);
+                        var json = _self[name];
+                        _console.debug("[Josh.FeedlyConsole] json to nodes %O.", json);
                         node.children = makeJSONNodes(path, json, 'leaf');
                         return callback(node);
                     });
                 } else {
-                    // 2+, details
-                    _console.debug("[Josh.FeedlyConsole] not impleted, path: %s", path);
+                    // item 2+, details
+                    _console.debug("[Josh.FeedlyConsole] not implemented, path: %s", path);
                 }
             }
-        }
-
-        //<section id='getRepos'/>
-
-        // getRepos
-        // --------
-
-        // This function fetches all repositories for a given user.
-        function getRepos(userLogin, callback) {
-            return get("users/" + userLogin + "/repos", null, function(data) {
-                callback(data);
-            });
-        }
-
-        //<section id='getRepo'/>
-
-        // getRepo
-        // -------
-
-        // This function tries to match a repository from the given list of known repositories. Should `repo_name` be null,
-        // the first repository in `repos` is returned.
-        function getRepo(repo_name, repos) {
-            if(!repos || repos.length === 0) {
-                return null;
-            }
-            var repo;
-            if(repo_name) {
-                repo = _.find(repos, function(repo) {
-                    return repo.name === repo_name;
-                });
-                if(!repo) {
-                    return callback();
-                }
-            } else {
-                repo = repos[0];
-            }
-            return repo;
         }
 
 
@@ -599,6 +600,7 @@ console.log("[feedlyconsole] loading %O", Josh);
 
         // This function builds child pathnodes from the directory information returned by getDir.
         function makeNodes(children) {
+            _console.debug("[Josh.FeedlyConsole] makeNodes %O.", children);
             return _.map(children, function(node) {
                 return {
                     name: node.name,
@@ -609,16 +611,27 @@ console.log("[feedlyconsole] loading %O", Josh);
         }
 
         function makeJSONNodes(path, children, type) {
-            return _.map(children, function(value, key, list) {
-                name = [key, value].join(':');
-                return {
-                    name: name,
-                    path: path + '/' + name,
-                    isFile: type === 'leaf'
-                };
-            });
+            if( _.isArray( children ) ) {
+                var nodes = _.map(children, function(item) {
+                    var name = item.label || item.title || item.id;
+                    return $.extend( { name: name,
+                                       path: path + '/' + name,
+                                       isFile: type === 'leaf'
+                                     }, item );
+                });
+                return nodes;
+            } else {
+                return _.map(children, function(value, key) {
+                    var name = [key, value].join(':');
+                    return {
+                        name: name,
+                        path: path + '/' + name,
+                        isFile: type === 'leaf'
+                    };
+                });
+            }
         }
-        
+
         function makeRootNodes() {
             return _.map(_self.root_commands, function(value, key, list) {
                 return {
@@ -641,8 +654,8 @@ console.log("[feedlyconsole] loading %O", Josh);
         // This function is a lazy way with giving up if some request failed during intialization, forcing the user
         // to reload to retry.
         function initializationError(context, msg) {
-            _console.debug("[" + context + "] failed to initialize: " + msg);
-            alert("unable to initialize shell. Encountered a problem talking to github api. Try reloading the page");
+            _console.error("[%s] failed to initialize: %s.", context, msg);
+            //alert("unable to initialize shell. Encountered a problem talking to github api. Try reloading the page");
         }
 
         //<section id='initializeUI'/>
@@ -653,7 +666,7 @@ console.log("[feedlyconsole] loading %O", Josh);
         // After a current user and repo have been set, this function initializes the UI state to allow the shell to be
         // shown and hidden.
         function initializeUI() {
-            _console.log("[Josh.FeedlyConsole] initializeUI");
+            _console.log("[Josh.FeedlyConsole] initializeUI.");
 
             // We grab the `consoletab` and wire up hover behavior for it.
             var $consoletab = $('#consoletab');
@@ -715,42 +728,44 @@ console.log("[feedlyconsole] loading %O", Josh);
         }
 
 
-        _console.log("[Josh.FeedlyConsole] initialize");        
+        _console.log("[Josh.FeedlyConsole] initialize.");
         initialize();
         // wire up pageAction to toggle console
-        // kind of a mess, but we only want to create one listener, 
+        // kind of a mess, but we only want to create one listener,
         // but initializeUI can be called multiple times because
         // feedly will blow away console that are added to early
-        chrome.runtime.onMessage.addListener(
-            function(request, sender, sendResponse) {
-                _console.debug("[feedlyconsole] msg:" + request.msg);
+        if(chrome.runtime !== undefined) { // when in extension
+            chrome.runtime.onMessage.addListener(
+                function(request, sender, sendResponse) {
+                    _console.debug("[feedlyconsole] msg: %s.", request.msg);
 
-                if ( request.action === "icon_active" ) {
-                    url_array = request.url.split("/");
-                    url = url_array[0] + "//" + url_array[2] + "/" + _self.api_version;
-                    _console.debug("[feedlyconsole] set api:" + url);
-                    _self.api = url;
-                } else if ( request.action === "toggle_console" ) {
-                    if(_self.ui.toggleActivateAndShow === undefined) {
-                        window.console.warn("[feedlyconsole] ui not yet ready");
+                    if ( request.action === "icon_active" ) {
+                        var url_array = request.url.split("/");
+                        var url = url_array[0] + "//" + url_array[2] + "/" + _self.api_version;
+                        _console.debug("[feedlyconsole] set api url: %s.", url);
+                        _self.api = url;
+                    } else if ( request.action === "toggle_console" ) {
+                        if(_self.ui.toggleActivateAndShow === undefined) {
+                            window.console.warn("[feedlyconsole] ui not yet ready");
+                        } else {
+                            _self.ui.toggleActivateAndShow();
+                        }
+                    } else if ( request.action === "cookie_feedlytoken" ) {
+                        _self.OAuth = request.feedlytoken;
+                        _console.debug("[feedlyconsole] token %s...",
+                                       _self.OAuth.slice(0,8) );
                     } else {
-                        _self.ui.toggleActivateAndShow();
+                        _console.debug("[feedlyconsole] unknown action %s request %O.",
+                                       request.action, request);
                     }
-                } else if ( request.action === "cookie_feedlytoken" ) {
-                    _self.OAuth = request.feedlytoken;
-                    _console.debug("[feedlyconsole] token " + 
-                                   _self.OAuth.slice(0,8) + "..." );
-                } else {
-                    _console.debug("[feedlyconsole] unknown action:" + request.action);
-                }
-                sendResponse({ "action": "ack" });
-            });
-            return _self;
+                    sendResponse({ "action": "ack" });
+                });
+        } else {
+            // not extension
+            $(document).ready(function() {initializeUI();});
+        }
+        return _self;
     })(root, $, _);
-    console.log("[feedlyconsole] loaded %O", Josh.FeedlyConsole);
+    console.log("[feedlyconsole] loaded %O.", Josh.FeedlyConsole);
 })(this, $, _);
-console.log("[feedlyconsole] loaded %O", Josh);
-
-
-
-
+console.log("[feedlyconsole] loaded %O.", Josh);
