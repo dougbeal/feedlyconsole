@@ -125,10 +125,8 @@ console.log("[feedlyconsole] loading %O", Josh);
                         }
                         var template = _self.shell.templates[command_name] || _self.shell.templates.default_template;
 
-                        var template_args = {
-                            command_name: data,
-                            'data': data
-                        };
+                        var template_args = {};
+                        template_args[command_name] = template_args['data'] = data;
                         _console.debug("[Josh.FeedlyConsole] data %O cmd %O args %O", data, cmd, args);
                         return callback(template(template_args));
                     });
@@ -325,7 +323,7 @@ console.log("[feedlyconsole] loading %O", Josh);
                         "email": "jim.smith@gmail.com",
                         "givenName": "Jim",
                         "familyName": "Smith",
-                        "picture": "https://www.google.com/profile_images/1771656873/bigger.jpg",
+                        "picture": "img/download.jpeg",
                         "gender": "male",
                         "locale": "en",
                         "reader": "9080770707070700",
