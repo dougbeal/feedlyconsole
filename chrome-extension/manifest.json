@@ -34,6 +34,7 @@
                 "javascript/readline.js",
                 "javascript/shell.js",
                 "javascript/pathhandler.js",
+                "javascript/optparse.js",
                 "feedlyconsole.js"
             ],
             "all_frames": false
