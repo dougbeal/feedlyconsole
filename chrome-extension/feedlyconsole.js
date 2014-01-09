@@ -25,11 +25,13 @@ Josh.config = {
     console: window.console,
     killring: new Josh.KillRing(),
     readline: null,
-    shell: null
+    shell: null,
+    pathhandler: null
 };
 Josh.config.readline = new Josh.ReadLine(Josh.config);
 Josh.config.shell = new Josh.Shell(Josh.config);
-
+// `Josh.PathHandler` is attached to `Josh.Shell` to provide basic file system navigation.
+Josh.config.pathhandler = new Josh.PathHandler(Josh.config.shell, {console: Josh.config.console});
 
 console.log("[feedlyconsole] loading %O", Josh);
 
@@ -62,38 +64,33 @@ console.log("[feedlyconsole] loading %O", Josh);
         };
 
 
-
-        // `Josh.PathHandler` is attached to `Josh.Shell` to provide basic file system navigation.
-        _self.pathhandler = new Josh.PathHandler(_self.shell, {console: _console});
+        // keep comments near templates - js2coffee
+        (function() {
+        _self.pathhandler = Josh.config.pathhandler
 
         // Custom Templates
         // ================
         // `Josh.Shell` uses *Underscore* templates for rendering output to the shell. This console overrides some and adds a couple of new ones for its own commands.
-
+        //
         // **templates.prompt**
-
         // Override of the default prompt to provide a multi-line prompt of the current user, repo and path and branch.
         _self.shell.templates.prompt = _.template("<strong><%= node.path %> $</strong>");
 
         // **templates.ls**
-
         // Override of the pathhandler ls template to create a multi-column listing.
         _self.shell.templates.ls = _.template("<ul class='widelist'><% _.each(nodes, function(node) { %><li><%- node.name %></li><% }); %></ul><div class='clear'/>");
 
         // **templates.not_found**
-
         // Override of the pathhandler *not_found* template, since we will throw *not_found* if you try to access a valid file. This is done for the simplicity of the tutorial.
         _self.shell.templates.not_found = _.template("<div><%=cmd%>: <%=path%>: No such directory</div>");
 
         //**templates.rateLimitTemplate**
-
         // rate limiting will be added later to feedly api
         _self.shell.templates.rateLimitTemplate = _.template("<%=remaining%>/<%=limit%>");
 
         _self.shell.templates.default_template = _.template("<div><%= JSON.stringify(data) %></div>");
 
         //**templates.profile**
-
         // user information
         _self.shell.templates.profile = _.template("<div class='userinfo'>" +
                                                    "<img src='<%=profile.picture%>' style='float:right;'/>" +
@@ -105,6 +102,7 @@ console.log("[feedlyconsole] loading %O", Josh);
                                                    "</table>" +
                                                    "</div>"
                                                   );
+        })();
 
 
 
