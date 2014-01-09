@@ -1,19 +1,37 @@
-<a href="https://github.com/dougbeal/feedlyconsole">feedlyconsole</a>
-<pre>
-<code class="javascript">
-    // Adding the script tag to the head as suggested before
-    var head = document.getElementsByTagName('head')[0];
-    var script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src = "http://dougbeal.github.io/feedlyconsole/feedlyconsole.js";
-
-    // Then bind the event to the callback function.
-    // There are several events for cross browser compatibility.
-    script.onreadystatechange = function() { window.console.log("feedlyconsole.js loaded");  };
-    script.onload = script.onreadystatechange;
-
-    // Fire the loading
-    head.appendChild(script);
-</code>
-</pre>
-
+<!doctype html>
+<html xmlns="http://www.w3.org/1999/html">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  <title>Feedlyconsole demo by dougbeal</title>
+  <link rel="stylesheet" href="chrome-extension/stylesheets/styles.css">
+  <link href='http://fonts.googleapis.com/css?family=Source+Code+Pro' rel='stylesheet' type='text/css'>
+  <link rel="stylesheet" href="http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css">
+  <link rel="stylesheet" href="chrome-extension/feedlyconsole.css">
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+  <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.9.2/jquery-ui.min.js"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.2/underscore-min.js"></script>
+  <script>Josh = {Debug: true };</script>
+  <script src="josh.js/js/killring.js"></script>
+  <script src="josh.js/js/history.js"></script>
+  <script src="josh.js/js/readline.js"></script>
+  <script src="josh.js/js/shell.js"></script>
+  <script src="josh.js/js/pathhandler.js"></script>
+  <script src="josh.js/ext/optparse-js/lib/optparse.js"></script>
+  <script src="chrome-extension/feedlyconsole.js"></script>
+</head>
+<body>
+<div id="consoletab" class="consoletab" style="display: block;">Click or type <code>~</code> to show Console</div>
+<div id="shell-container">
+  <div id=shell-status>Github rate limit: <span id="ratelimit"></span></div>
+  <div id="shell-panel">
+    <div>Type <code>help</code> or hit <code>TAB</code> for a list of commands. Press
+      <code>Ctrl-C</code> to hide the console.
+    </div>
+    <div id="shell-view"></div>
+  </div>
+</div>
+<a href="https://github.com/dougbeal/feedlyconsole">feedlyconsole on github</a>
+</body>
+</html>
+<html>
