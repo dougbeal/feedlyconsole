@@ -202,7 +202,8 @@ console.log("[feedlyconsole] loading %O", Josh);
             });
             var absolute = resolved.join('/');
             _console.debug("[Josh.FeedlyConsole]path to fetch: " + absolute);
-            return getDir(absolute, callback);
+            // if get getDir returns false, use same node
+            return getDir(absolute, callback) || self.node;
         };
 
         //<section id='getChildNodes'/>
@@ -448,7 +449,7 @@ console.log("[feedlyconsole] loading %O", Josh);
             _console.debug("[feedlyconsole] injecting %s.", file);
 
             insertCSSLink("stylesheets/styles.css");
-            insertCSSLink("stylesheets/source-code-pro.css");
+            //insertCSSLink("stylesheets/source-code-pro.css");
             insertCSSLink("stylesheets/jquery-ui.css");
             insertCSSLink("feedlyconsole.css");
 
@@ -560,7 +561,9 @@ console.log("[feedlyconsole] loading %O", Josh);
                     });
                 } else {
                     // item 2+, details
-                    _console.debug("[Josh.FeedlyConsole] not implemented, path: %s", path);
+                    _console.debug("[Josh.FeedlyConsole] not implemented, path: %s, name %s", path, name);
+                    get("streams/" );
+                    return callback(undefined)
                 }
             }
         }

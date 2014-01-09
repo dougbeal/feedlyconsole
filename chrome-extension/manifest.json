@@ -43,12 +43,12 @@
         "javascript/jquery.min.map",
         "javascript/jquery-ui.min.map",
         "feedlyconsole.css", 
-        "stylesheets/source-code-pro.css",
         "stylesheets/styles.css",
         "stylesheets/jquery-ui.css",
         "feedlyconsole.html",
         "inject.js",
-        "http://themes.googleusercontent.com/static/fonts/sourcecodepro/v3/mrl8jkM18OlOQN8JLgasD9zbP97U9sKh0jjxbPbfOKg.ttf"
+        "http://themes.googleusercontent.com/static/fonts/sourcecodepro/v3/mrl8jkM18OlOQN8JLgasD9zbP97U9sKh0jjxbPbfOKg.ttf",
+        "http://fonts.googleapis.com/css?family=Source+Code+Pro"
         
     ],
     "page_action": {
