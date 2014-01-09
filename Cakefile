@@ -1,5 +1,4 @@
 fs = require 'fs'
-yaml = require 'js-yaml'
 span = require('child_process').spawn
 
 srcCoffeeDir = 'coffee-script'
@@ -15,13 +14,14 @@ copySearchPath = [
         'josh.js/js'
         'josh.js/ext/optparse-js/lib'
         ]
-manifest = yaml.load fs.readFileSync("chrome-extension/manifest.json", "utf8")
-ccontent_scripts = manifest["content_scripts"]
+manifest = JSON.parse fs.readFileSync("chrome-extension/manifest.json", "utf8")
+content_scripts = manifest["content_scripts"]
 manifest_js = []
 manifest_js.push js for js in content_script['js'] for content_script in content_scripts
 console.log 'feedlyconsole' in coffeeFiles, manifest_js.length, coffeeFiles.length
 copy_files = []
 copy_files.push file for file in manifest_js when file.split('.')[...-1].join('.') not in coffeeFiles
+
 console.log copy_files
 task 'test', 'Print out internal state', ->
         console.log "copy_files #{copy_files}."
