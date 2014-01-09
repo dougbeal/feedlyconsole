@@ -4,7 +4,6 @@ function checkForValidUrl(tabId, changeInfo, tab) {
         // ... show the page action.
         console.log( "checkForValidUrl " + tab.id + "/" + tab.url);
         activatePageActionTab(tab);
-
     }
 }
 
@@ -13,7 +12,7 @@ function activatePageActionTab(tab) {
     action = "icon_active";
     console.log(msg);
     chrome.pageAction.show(tab.id);
-    chrome.tabs.sendMessage(tab.id, 
+    chrome.tabs.sendMessage(tab.id,
                             {
                                 "action": action,
                                 "url": tab.url,
@@ -35,7 +34,7 @@ function activateConsole(tab){
     msg = "toggle console " + tab.url + " to " + tab.id;
     action = "toggle_console";
     console.log(msg);
-    chrome.tabs.sendMessage(tab.id, 
+    chrome.tabs.sendMessage(tab.id,
                             {
                                 "action": action,
                                 "url": tab.url,
@@ -50,8 +49,8 @@ function activateConsole(tab){
 
 function grabCookies(tab){
     domain = tab.url.split('/')[2];
-    filter = { "name":"session@cloud", 
-               "domain":domain 
+    filter = { "name":"session@cloud",
+               "domain":domain
              };
     chrome.cookies.getAll(filter, function(cookies) {
             for (var i in cookies) {
@@ -62,7 +61,7 @@ function grabCookies(tab){
                 action = "cookie_feedlytoken";
                 msg = action + " " + tab.url + " to " + tab.id + " " + filter;
                 console.log(msg);
-                chrome.tabs.sendMessage(tab.id, 
+                chrome.tabs.sendMessage(tab.id,
                                         {
                                             "action": action,
                                             "url": tab.url,
