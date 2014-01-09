@@ -1,23 +1,3 @@
-function inject() {
-    // inject after readline is initilized
-    $(document).ready( function() {
-        var file = 'inject.js';
-        // supress keydown, keypress when console is active
-        console.debug("[feedlyconsole] injecting " + file);
-        var script = $('<script/>', {
-            src: chrome.extension.getURL(file),
-            type: 'text/javascript'
-        });
-
-        script.ready( function() {
-            console.debug("[feedlyconsole] loaded inject.js %O", script);
-        });
-        $('head').prepend(script);
-
-    });
-}
-
-
 Josh = Josh || {};
 Josh.Debug = true;
 Josh.config = {
@@ -255,7 +235,7 @@ console.log("[feedlyconsole] loading %O", Josh);
                 _self[resource] = value;
                 callback(value);
             }
-            
+
             if(chrome.extension === undefined) {
                 // not embedded, demo mode
                 switch(resource) {
