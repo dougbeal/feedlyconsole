@@ -28,7 +28,9 @@ download_urls = [
   "http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.map"
   "http://ajax.googleapis.com/ajax/libs/jqueryui/1.9.2/jquery-ui.min.js"
   "http://ajax.googleapis.com/ajax/libs/jqueryui/1.9.2/jquery-ui.min.map"
-  "http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.2/underscore-min.js"
+  "http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.5.2/underscore-min.js"
+  "http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.5.2/underscore-min.map"
+  "http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.5.2/underscore.js"
   "http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css"
   ]
 
@@ -79,7 +81,7 @@ run = (cmd, optional...) ->
     else
       throw
         msg: "too many arguments"
-      
+
   args_joined = args.join(' ')
   cmd_string = "#{cmd} #{args_joined}"
   try
@@ -95,10 +97,28 @@ run = (cmd, optional...) ->
     util.error error
 
 #need to run synchronously or at least sequentially
-cp_chmod = (src, dst) ->
-  run 'mkdir', ["-vp", dst.split('/')[...-1].join('/')], ->
-    run 'cp', ["-fv", src, dst], ->
-      run 'chmod', ["-v", "a-w", dst]
+cp_chmod = (src, dst, next) ->
+  run 'cp', ["-fv", src, dst], ->
+    run 'chmod', ["-v", "a-w", dst], next
+
+cp = (src, dst, next) ->
+  run 'cp', ["-fv", src, dst], next
+
+nowrite = (dst, next) ->
+  globchmod dst, "a-w", next
+
+write = (dst, next) ->
+  globchmod dst, "u+w", next
+
+globchmod = (dst, mode, next) ->
+  fs.stat dst, (err, stats) ->
+    if stats.isFile()
+      chmod dst, mode, next
+    else
+      chmod path.join(dst, '*'), mode, next
+
+chmod = (dst, mode, next) ->
+  run 'chmod', ["-v", mode, dst], next
 
 curl = (url) ->
   ext = url.split('.').pop()
@@ -110,8 +130,7 @@ curl = (url) ->
     if exists
       console.log "#{filename} up to date."
     else
-      run 'mkdir', ["-pv", cwd], ->
-        run 'curl', ['-sSO', url], cwd: cwd
+      run 'curl', ['-sSO', url], cwd: cwd
 
 task 'test', 'Print out internal state', ->
   console.log "test copy_files #{copy_files}."
@@ -125,21 +144,52 @@ task 'test', 'Print out internal state', ->
     run 'ls', ['stylesheets'], cwd: 'chrome-extension', ->
       run 'pwd', ['stylesheets'], cwd: 'chrome-extension'
 
+gather_copy = () ->
+  dstdir = path.join __dirname, dstExtJavascriptDir
+  srcfiles = []
+  dstfiles = []
+  for srcpath in copySearchPath
+    for file in fs.readdirSync(srcpath)
+      if file in copy_files
+        srcfile = path.join __dirname, srcpath, file
+        dstfile = path.join dstdir, file
+        srcfiles.push(srcfile)
+        dstfiles.push(dstfile)
+  return [srcfiles, dstfiles]
 
 task 'copy', 'Copy submodule javascript to dstExtJavascriptDir', ->
-  for path in copySearchPath then do (path) ->
-    for file in fs.readdirSync(path) when file in copy_files then do (file) ->
-      console.log 'copy', path, file
-      cp_chmod "#{__dirname}/#{path}/#{file}",
-       "#{__dirname}/#{dstExtJavascriptDir}/#{file}"
+  dstdir = path.join __dirname, dstExtJavascriptDir
+  [srcfiles, dstfiles] = gather_copy()
+  fs.mkdir dstdir, ->
+    write dstdir, ->
+      cp srcfiles.join(' '), dstdir, ->
+        nowrite dstdir
 
+# TODO: chmod isn't working...
 task 'download', 'Download javascripts to dstExtJavascriptDir', ->
-  for url in download_urls then do (url) ->
+  for ext, dir in download_dst
+    dstdir = path.join __dirname, dstDir, dir
+    fs.mkdir dstdir
+  for url in download_urls
     curl url
+  for ext, dir in download_dst
+    dstdir = path.join __dirname, dstDir, dir
+    nowrite dstdir
+
+gather_compile = () ->
+  dstdir = path.join __dirname, dstJavascriptDir
+  dstfiles = (path.join(
+    dstdir,
+    "#{name}.js") for name in coffeeFiles)
+  srcfiles = (path.join(
+    __dirname,
+    srcCoffeeDir,
+    "#{name}.coffee") for name in coffeeFiles)
+  return [srcfiles, dstfiles]
 
 task 'compile', 'Compile coffeescripts to dstExtJavascriptDir', ->
-  files = (path.join( __dirname, srcCoffeeDir, "#{name}.coffee") for name in coffeeFiles).join(' ')
-  run "coffee #{options} #{files}"
+  [srcfiles, dstfiles] = gather_compile()
+  run "coffee #{options} #{srcfiles.join(' ')}"
 
 task 'build', 'Build chrome extension', ->
   invoke 'copy'
@@ -147,9 +197,14 @@ task 'build', 'Build chrome extension', ->
   invoke 'compile'
 
 task 'watch', 'Watch prod source files and build changes', ->
-  console.log "Watching for changes in #{srcrcCoffeeDir}"
-  for file in coffeeFiles then do (file) ->
-    fs.watchFile "#{srcCoffeeDir}/#{file}.coffee", (curr, prev) ->
-    if +curr.mtime isnt +prev.mtime
-      console.log "Saw change in #{srcCoffeeDir}/#{file}.coffee"
-      invoke 'build'
+  console.log "Watching for changes."
+  change = (event, filename) ->
+    console.log "watch: #{filename} #{event}"
+    invoke 'copy'
+    invoke 'compile'
+  [src, dst] = gather_compile()
+  files = src
+  [src, dst] = gather_copy()
+  files.push.apply files, src
+  for file in files
+    fs.watch file, persistent: true, change

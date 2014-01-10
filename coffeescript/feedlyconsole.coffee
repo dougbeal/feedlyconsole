@@ -11,7 +11,8 @@ Josh.config =
 Josh.config.readline = new Josh.ReadLine(Josh.config)
 Josh.config.shell = new Josh.Shell(Josh.config)
 
-# `Josh.PathHandler` is attached to `Josh.Shell` to provide basic file system navigation.
+# `Josh.PathHandler` is attached to `Josh.Shell` to provide basic file
+# system navigation.
 Josh.config.pathhandler = new Josh.PathHandler(Josh.config.shell,
   console: Josh.config.console
 )
@@ -21,18 +22,19 @@ console.log "[feedlyconsole] loading %O", Josh
 # based on josh.js:gh-pages githubconsole
 ((root, $, _) ->
   Josh.FeedlyConsole = ((root, $, _) ->
-    
+
     # Enable console debugging, when Josh.Debug is set and there is a console object on the document root.
     _console = (if (Josh.Debug and window.console) then window.console else
       log: ->
       debug: ->
     )
 
-    
+    ###
     # Console State
     # =============
     #
     # `_self` contains all state variables for the console's operation
+    ###
     _self =
       shell: Josh.config.shell
       api_version: "v3/"
@@ -41,46 +43,72 @@ console.log "[feedlyconsole] loading %O", Josh
       ui: {}
       root_commands: {}
       pathhandler: Josh.config.pathhandler
-      
+
+    ###
     # Custom Templates
     # ================
 
     # `Josh.Shell` uses *Underscore* templates for rendering output to
     # the shell. This console overrides some and adds a couple of new
     # ones for its own commands.
-    #
+    ###
+
+    ###
     # **templates.prompt**
     # Override of the default prompt to provide a multi-line prompt of
     # the current user, repo and path and branch.
-    _self.shell.templates.prompt = _.template("<strong><%= node.path %> $</strong>")
+    ###
+    _self.shell.templates.prompt = _.template """
+    <strong>
+      <%= node.path %> $
+    </strong>
+    """
 
     # **templates.default_template**
     # Use when specific template doesn't exist
-    _self.shell.templates.default_template = _.template("<div><%= JSON.stringify(data) %></div>")    
+    _self.shell.templates.default_template = _.template """
+    <div><%= JSON.stringify(data) %></div>"""
 
     # **templates.ls**
     # Override of the pathhandler ls template to create a multi-column listing.
-    _self.shell.templates.ls = _.template("<ul class='widelist'><% _.each(nodes, function(node) { %><li><%- node.name %></li><% }); %></ul><div class='clear'/>")
+    _self.shell.templates.ls = _.template """
+    <ul class='widelist'><% _.each(nodes, function(node) { %><li><%- node.name %></li><% }); %></ul><div class='clear'/>"""
 
     # **templates.not_found**
     # Override of the pathhandler *not_found* template, since we will throw *not_found* if you try to access a valid file. This is done for the simplicity of the tutorial.
-    _self.shell.templates.not_found = _.template("<div><%=cmd%>: <%=path%>: No such directory</div>")
+    _self.shell.templates.not_found = _.template """
+    <div><%=cmd%>: <%=path%>: No such directory</div>
+      """
 
     #**templates.rateLimitTemplate**
     # rate limiting will be added later to feedly api
 
-    _self.shell.templates.rateLimitTemplate = _.template("<%=remaining%>/<%=limit%>")
+    _self.shell.templates.rateLimitTemplate = _.template """
+    <%=remaining%>/<%=limit%>
+      """
 
     #**templates.profile**
     # user information
 
-    _self.shell.templates.profile = _.template("<div class='userinfo'>" + "<img src='<%=profile.picture%>' style='float:right;'/>" + "<table>" + "<tr><td><strong>Id:</strong></td><td><%=profile.id %></td></tr>" + "<tr><td><strong>Email:</strong></td><td><%=profile.email %></td></tr>" + "<tr><td><strong>Name:</strong></td><td><%=profile.fullName %></td></tr>" + "</table>" + "</div>")                      
+    _self.shell.templates.profile = _.template """
+    <div class='userinfo'>
+      <img src='<%=profile.picture%>' style='float:right;'/>
+      <table>
+        <tr>
+          <td><strong>Id:</strong></td>
+          <td><%=profile.id %></td>
+        </tr>
+        <tr><td><strong>Email:</strong></td>
+          <td><%=profile.email %></td></tr>
+        <tr><td><strong>Name:</strong></td>
+          <td><%=profile.fullName %></td></tr>
+      </table></div>"""
 
     # Adding Commands to the Console
     # ==============================
-    
+
     buildExecCommandHandler = (command_name) ->
-      
+
       # `exec` handles the execution of the command.
       exec: (cmd, args, callback) ->
         get command_name, null, (data) ->
@@ -91,7 +119,7 @@ console.log "[feedlyconsole] loading %O", Josh
           _console.debug "[Josh.FeedlyConsole] data %O cmd %O args %O", data, cmd, args
           callback template(template_args)
 
-    
+
     simple_commands = [
       "profile"
       "tags"
@@ -110,9 +138,9 @@ console.log "[feedlyconsole] loading %O", Josh
       addCommandHandler command, buildExecCommandHandler(command)
 
     _self.root_commands.tags.help = "help here"
-                                  
+
     #<section id='onNewPrompt'/>
-    
+
     # This attaches a custom prompt render to the shell.
     _self.shell.onNewPrompt (callback) ->
       callback _self.shell.templates.prompt(
@@ -120,20 +148,20 @@ console.log "[feedlyconsole] loading %O", Josh
         node: _self.pathhandler.current
       )
 
-              
+
     # Wiring up PathHandler
     # =====================
-    
+
     #<section id='getNode'/>
-    
+
     # getNode
     # -------
-    
+
     # `getNode` is required by `Josh.PathHandler` to provide filesystem behavior. Given a path, it is expected to return
     # a pathnode or null;
     _self.pathhandler.getNode = (path, callback) ->
       _console.debug "[Josh.FeedlyConsole] looking for node at %s.", path
-      # If the given path is empty, just return the current pathnode.      
+      # If the given path is empty, just return the current pathnode.
       return callback(_self.pathhandler.current)  unless path
       parts = getPathParts(path)
       # If the first part of path parts isn't empty, the path is a
@@ -153,22 +181,22 @@ console.log "[feedlyconsole] loading %O", Josh
 
       absolute = resolved.join("/")
       _console.debug "[Josh.FeedlyConsole]path to fetch: " + absolute
-      # if get getDir returns false, use same node      
+      # if get getDir returns false, use same node
       return getDir(absolute, callback) or self.node
 
 
     #<section id='getChildNodes'/>
-    
+
     # getChildNodes
     # -------------
-    
+
     # `getChildNodes` is the second function implementation required
     # for `Josh.PathHandler`. Given a pathnode, it returns a list of
     # child pathnodes. This is used by `Tab` completion to resolve a
     # partial path, after first resolving the nearest parent node
     # using `getNode
     _self.pathhandler.getChildNodes = (node, callback) ->
-      # If the given node is a file node, no further work is required.      
+      # If the given node is a file node, no further work is required.
       if node.isFile
         _console.debug "[Josh.FeedlyConsole] it's a file, no children %O", node
         return callback()
@@ -178,28 +206,28 @@ console.log "[feedlyconsole] loading %O", Josh
         _console.debug "[Josh.FeedlyConsole] got children, let's turn them into nodes %O", node
         return callback(makeNodes(node.children))
       _console.debug "[Josh.FeedlyConsole] no children, fetch them %O", node
-      # Finally, use `getDir` to fetch and populate the child nodes.      
+      # Finally, use `getDir` to fetch and populate the child nodes.
       getDir node.path, (detailNode) ->
         node.children = detailNode.children
         callback node.children
-    
 
-    
 
-    
 
-    
 
-    
-    
+
+
+
+
+
+
     # Supporting Functions
     # ====================
-    
+
     #<section id='get'/>
-    
+
     # get
     # ---
-    
+
     # This function is responsible for all API requests, given a partial API path, `resource`, and an query argument object,
     # `args`.
     get = (resource, args, callback) ->
@@ -210,7 +238,7 @@ console.log "[feedlyconsole] loading %O", Josh
       cache = _self[resource]
       return callback(cache)  if cache
       if chrome.extension is `undefined`
-        
+
         # not embedded, demo mode
         switch resource
           when "tags"
@@ -332,7 +360,7 @@ console.log "[feedlyconsole] loading %O", Josh
             withCredentials: true
 
         $.ajax(request).done (response, status, xhr) ->
-          
+
           # Every response from the API includes rate limiting
           # headers, as well as an indicator injected by the API proxy
           # whether the request was done with authentication. Both are
@@ -348,19 +376,19 @@ console.log "[feedlyconsole] loading %O", Josh
             alert "Whoops, you've hit the github rate limit. You'll need to authenticate to continue"
             _self.shell.deactivate()
             return null
-          
+
           # For simplicity, this tutorial trivially deals with request
           # failures by just returning null from this function via the
           # callback.
           return callback()  if status isnt "success"
           cacheCallback response
 
-    
+
     #<section id='initialize'/>
-    
+
     # initalize
     # --------------
-    
+
     # This function sets the node
     initialize = (evt) -> #err, callback) {
       insertShellUI()
@@ -369,12 +397,12 @@ console.log "[feedlyconsole] loading %O", Josh
         _self.pathhandler.current = node
         _self.root = node
 
-    
+
     # return feedlyconsole.ready(function() {
-    
+
     # });
     insertCSSLink = (name) ->
-      
+
       # insert css into head
       $("head").append $("<link/>",
         rel: "stylesheet"
@@ -386,7 +414,7 @@ console.log "[feedlyconsole] loading %O", Josh
       file = "feedlyconsole.html"
       _console.debug "[feedlyconsole] injecting %s.", file
       insertCSSLink "stylesheets/styles.css"
-      
+
       #insertCSSLink("stylesheets/source-code-pro.css");
       insertCSSLink "stylesheets/jquery-ui.css"
       insertCSSLink "feedlyconsole.css"
@@ -409,13 +437,13 @@ console.log "[feedlyconsole] loading %O", Josh
           value = ""
           value = attr.value  if attr isnt null
           _console.debug "[feedlyconsole/observer] %s: [%s]=%s on %O", type, name, value, target
-          
+
           # not sure if wide will always be set, so trigger on the next mod
           if not _found and ((name is "class" and value.indexOf("wide") isnt -1) or (name is "_pageid" and value.indexOf("rot21") isnt -1))
             _console.debug "[feedlyconsole] mutation observer end %O", observer
             _found = true
             doInsertShellUI()
-            
+
             # found what we were looking for
             null
 
@@ -431,21 +459,21 @@ console.log "[feedlyconsole] loading %O", Josh
         _console.debug observer
         _console.debug config
         observer.observe target, config
-    
+
     #<section id='getDir'/>
-    
+
     # getDir
     # ------
-    
+
     # This function function fetches the directory listing for a path on a given repo and branch.
     getDir = (path, callback) ->
       node = undefined
       name = undefined
-      
+
       # remove trailing '/' for API requests.
       path = path.substr(0, path.length - 1)  if path and path.length > 1 and path[path.length - 1] is "/"
       if not path or (path.length is 1 and path is "/")
-        
+
         # item 0, root, each command a subdir
         name = "/"
         node =
@@ -457,7 +485,7 @@ console.log "[feedlyconsole] loading %O", Josh
         callback node
       else
         parts = getPathParts(path)
-        
+
         # leading '/' produces empty item
         parts = parts.slice(1)  if parts[0] is ""
         name = parts[0]
@@ -465,14 +493,14 @@ console.log "[feedlyconsole] loading %O", Josh
         if handler is `undefined`
           callback()
         else if parts.length is 1
-          
+
           # item 1, commands
           node =
             name: name
             path: path
             children: null
 
-          
+
           # implicitly call command as part of path
           command = handler.exec
           command "", "", (map) ->
@@ -482,28 +510,28 @@ console.log "[feedlyconsole] loading %O", Josh
             callback node
 
         else
-          
+
           # item 2+, details
           _console.debug "[Josh.FeedlyConsole] not implemented, path: %s, name %s", path, name
           get "streams/"
           callback `undefined`
-    
+
     #<section id='getPathParts'/>
-    
+
     # getPathParts
     # ------------
-    
+
     # This function splits a path on `/` and removes any empty trailing element.
     getPathParts = (path) ->
       parts = path.split("/")
       return parts.slice(0, parts.length - 1)  if parts[parts.length - 1] is ""
       parts
-    
+
     #<section id='makeNodes'/>
-    
+
     # makeNodes
     # ---------
-    
+
     # This function builds child pathnodes from the directory information returned by getDir.
     makeNodes = (children) ->
       _console.debug "[Josh.FeedlyConsole] makeNodes %O.", children
@@ -540,33 +568,33 @@ console.log "[feedlyconsole] loading %O", Josh
         type: "command"
         isFile: "command" is "leaf"
 
-    
+
     # UI setup and initialization
     # ===========================
-    
+
     #<section id='initializationError'/>
-    
+
     # initializationError
     # -------------------
-    
+
     # This function is a lazy way with giving up if some request failed during intialization, forcing the user
     # to reload to retry.
     initializationError = (context, msg) ->
       _console.error "[%s] failed to initialize: %s.", context, msg
-    
+
     #alert("unable to initialize shell. Encountered a problem talking to github api. Try reloading the page");
-    
+
     #<section id='initializeUI'/>
-    
+
     # intializeUI
     # -----------
-    
+
     # After a current user and repo have been set, this function initializes the UI state to allow the shell to be
     # shown and hidden.
     initializeUI = ->
-      
+
       # We grab the `consoletab` and wire up hover behavior for it.
-      
+
       # We also wire up a click handler to show the console to the `consoletab`.
       toggleActivateAndShow = ->
         if _self.shell.isActive()
@@ -621,7 +649,7 @@ console.log "[feedlyconsole] loading %O", Josh
     observer = new MutationObserver(mutationHandler)
     _console.log "[Josh.FeedlyConsole] initialize."
     initialize()
-    
+
     # wire up pageAction to toggle console
     # kind of a mess, but we only want to create one listener,
     # but initializeUI can be called multiple times because
