@@ -1,17 +1,21 @@
+#CoffeeScript = require 'coffee-script'
 fs = require 'fs'
-exec = require('child_process').exec
-util = require('util')
+{exec} = require 'child_process'
+util = require 'util'
+path = require 'path'
 
-srcCoffeeDir = 'coffee-script'
+
+srcCoffeeDir = 'coffeescript'
 dstDir = 'chrome-extension'
 dstJavascriptDir = "#{dstDir}/javascript"
 dstExtJavascriptDir = "#{dstJavascriptDir}/ext"
 
 coffeeFiles = [
   'feedlyconsole'
+  'background'
   ]
 
-options = "--output #{dstJavascriptDir} --map --compile #{file}"
+options = "--bare --output #{dstJavascriptDir} --map --compile"
 
 copySearchPath = [
   'josh.js/js'
@@ -132,6 +136,15 @@ task 'copy', 'Copy submodule javascript to dstExtJavascriptDir', ->
 task 'download', 'Download javascripts to dstExtJavascriptDir', ->
   for url in download_urls then do (url) ->
     curl url
+
+task 'compile', 'Compile coffeescripts to dstExtJavascriptDir', ->
+  files = (path.join( __dirname, srcCoffeeDir, "#{name}.coffee") for name in coffeeFiles).join(' ')
+  run "coffee #{options} #{files}"
+
+task 'build', 'Build chrome extension', ->
+  invoke 'copy'
+  invoke 'download'
+  invoke 'compile'
 
 task 'watch', 'Watch prod source files and build changes', ->
   console.log "Watching for changes in #{srcrcCoffeeDir}"
