@@ -64,7 +64,7 @@ console.log "[feedlyconsole] loading %O", Josh
 
     # **templates.not_found**
     # Override of the pathhandler *not_found* template, since we will throw *not_found* if you try to access a valid file. This is done for the simplicity of the tutorial.
-     _self.shell.templates.not_found = _.template("<div><%=cmd%>: <%=path%>: No such directory</div>")
+    _self.shell.templates.not_found = _.template("<div><%=cmd%>: <%=path%>: No such directory</div>")
 
     #**templates.rateLimitTemplate**
     # rate limiting will be added later to feedly api
