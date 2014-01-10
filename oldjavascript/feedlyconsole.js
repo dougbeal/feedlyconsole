@@ -20,9 +20,8 @@ console.log("[feedlyconsole] loading %O", Josh);
 // based on josh.js:gh-pages githubconsole
 (function(root, $, _) {
     Josh.FeedlyConsole = (function(root, $, _) {
-        console.debug("[Josh.FeedlyConsole]root %O %o", root, root);
-        // Enable console debugging, when Josh.Debug is set and there is a console object on the document root.
 
+        // Enable console debugging, when Josh.Debug is set and there is a console object on the document root.
         var _console = (Josh.Debug && window.console) ? window.console : {
             log: function() {
             },
@@ -44,9 +43,7 @@ console.log("[feedlyconsole] loading %O", Josh);
         };
 
 
-        // keep comments near templates - js2coffee
-        (function() {
-        _self.pathhandler = Josh.config.pathhandler
+        _self.pathhandler = Josh.config.pathhandler;
 
         // Custom Templates
         // ================
@@ -82,7 +79,7 @@ console.log("[feedlyconsole] loading %O", Josh);
                                                    "</table>" +
                                                    "</div>"
                                                   );
-        })();
+
 
 
 
@@ -737,6 +734,5 @@ console.log("[feedlyconsole] loading %O", Josh);
         }
         return _self;
     })(root, $, _);
-    console.log("[feedlyconsole] loaded %O.", Josh.FeedlyConsole);
 })(this, $, _);
 console.log("[feedlyconsole] loaded %O.", Josh);

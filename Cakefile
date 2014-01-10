@@ -1,10 +1,11 @@
 fs = require 'fs'
-spawn = require('child_process').spawn
+exec = require('child_process').exec
 util = require('util')
 
 srcCoffeeDir = 'coffee-script'
 dstDir = 'chrome-extension'
-dstJavascriptDir = 'chrome-extension/javascript'
+dstJavascriptDir = "#{dstDir}/javascript"
+dstExtJavascriptDir = "#{dstJavascriptDir}/ext"
 
 coffeeFiles = [
   'feedlyconsole'
@@ -28,9 +29,10 @@ download_urls = [
   ]
 
 download_dst =
-  js: 'javascript'
-  map: 'javascript'
+  js: 'javascript/ext'
+  map: 'javascript/ext'
   css: 'stylesheets'
+
 
 manifest = JSON.parse fs.readFileSync("chrome-extension/manifest.json", "utf8")
 content_scripts = manifest["content_scripts"]
@@ -47,18 +49,52 @@ copy_files.push file
     .split('.')[...-1]
     .join('.') not in coffeeFiles
 
-run = (cmd, args = [], opts = []) ->
-  child = spawn cmd, args, opts
-  child.stdout.on 'data', (data) ->
-    console.log cmd, args, opts, data.toString().trim()
-  child.stderr.on 'data', (data) ->
-    util.error "ERROR", cmd, args, opts, data.toString().trim() if data
+#  args = [], opts = [], next
+run = (cmd, optional...) ->
+  opts = {}
+  args = []
+  switch optional.length
+    when 3
+      next = optional.pop()
+      opts = optional.pop()
+      args = optional.pop()
+    when 2
+      last = optional.pop()
+      if typeof last is 'function'
+        next = last
+      else
+        opts = last
+      args = optional.pop()
+    when 1
+      last = optional.pop()
+      if typeof last is 'function'
+        next = last
+      else
+        args = last
+    when 0
+    else
+      throw
+        msg: "too many arguments"
+      
+  args_joined = args.join(' ')
+  cmd_string = "#{cmd} #{args_joined}"
+  try
+    child = exec cmd_string, opts, (error, stdout, stderr)->
+      output = "#{cmd_string}"
+      output = "#{output} #{JSON.stringify(opts)}" if opts?
+      output = "#{output} #{error}" if error?
+      output = "#{output} >> #{stdout.trim()}" if stdout.length > 0
+      output = "#{output}  stderr:#{stderr.trim()}" if stderr.length > 0
+      if error? util.error output else console.log output
+      next() if next?
+  catch error
+    util.error error
 
-
+#need to run synchronously or at least sequentially
 cp_chmod = (src, dst) ->
-  run 'mkdir', ["-p", dst.split('/')[...-1].join('/')]
-  run 'cp', ["-fv", src, dst]
-  run 'chmod', ["-v", "a-w", dst]
+  run 'mkdir', ["-vp", dst.split('/')[...-1].join('/')], ->
+    run 'cp', ["-fv", src, dst], ->
+      run 'chmod', ["-v", "a-w", dst]
 
 curl = (url) ->
   ext = url.split('.').pop()
@@ -66,32 +102,34 @@ curl = (url) ->
   dstByType = download_dst[ext]
   cwd = "#{dstDir}/#{dstByType}"
   path = "#{dstDir}/#{dstByType}/#{filename}"
-  run 'mkdir', ["-pv", cwd]
   fs.exists path, (exists) ->
     if exists
       console.log "#{filename} up to date."
     else
-      run 'curl', ['-sSO', url], cwd: cwd
-      console.log "curl #{url}"
-
+      run 'mkdir', ["-pv", cwd], ->
+        run 'curl', ['-sSO', url], cwd: cwd
 
 task 'test', 'Print out internal state', ->
-  console.log "copy_files #{copy_files}."
-  run 'ls'
-  run 'ls', [], [cwd: 'chrome-extension']
-  run 'ls', ['foobar'], [cwd: 'chrome-extension']
-  #run 'foobar', [], [cwd: 'chrome-extension']
+  console.log "test copy_files #{copy_files}."
+  run 'ls|wc'
+  run 'ls|wc', [], cwd: 'chrome-extension'
+  run 'ls', ['foobar'], cwd: 'chrome-extension'
+  run 'foobar', [], cwd: 'chrome-extension'
+  run 'ls index.html', ->
+    run 'ls coffeescript'
+  run 'ls', ['javascript'], cwd: 'chrome-extension', ->
+    run 'ls', ['stylesheets'], cwd: 'chrome-extension', ->
+      run 'pwd', ['stylesheets'], cwd: 'chrome-extension'
 
 
-task 'copy', 'Copy submodule javascript to dstJavascriptDir', ->
-  console.log "copy #{copy_files}"
+task 'copy', 'Copy submodule javascript to dstExtJavascriptDir', ->
   for path in copySearchPath then do (path) ->
-    console.log path
     for file in fs.readdirSync(path) when file in copy_files then do (file) ->
-      console.log file
-      cp_chmod "#{path}/#{file}", "#{dstJavascriptDir}/#{file}"
+      console.log 'copy', path, file
+      cp_chmod "#{__dirname}/#{path}/#{file}",
+       "#{__dirname}/#{dstExtJavascriptDir}/#{file}"
 
-task 'download', 'Download javascripts', ->
+task 'download', 'Download javascripts to dstExtJavascriptDir', ->
   for url in download_urls then do (url) ->
     curl url
 

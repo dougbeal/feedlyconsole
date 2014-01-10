@@ -17,7 +17,7 @@
     ],
     "background" : {
         "scripts": [
-            "background.js"
+            "javascript/background.js"
         ]
     },
     "content_scripts": [
@@ -25,28 +25,27 @@
             "run_at": "document_start",
             "matches": [ "*://*.feedly.com/*" ],
             "js": [
-                "javascript/jquery.min.js",
-                "javascript/jquery-ui.min.js",
-                "javascript/underscore-min.js",
-                "javascript/killring.js",
-                "javascript/history.js",
-                "javascript/readline.js",
-                "javascript/shell.js",
-                "javascript/pathhandler.js",
-                "javascript/optparse.js",
-                "feedlyconsole.js"
+                "javascript/ext/jquery.min.js",
+                "javascript/ext/jquery-ui.min.js",
+                "javascript/ext/underscore-min.js",
+                "javascript/ext/killring.js",
+                "javascript/ext/history.js",
+                "javascript/ext/readline.js",
+                "javascript/ext/shell.js",
+                "javascript/ext/pathhandler.js",
+                "javascript/ext/optparse.js",
+                "javascript/feedlyconsole.js"
             ],
             "all_frames": false
         } 
     ],
     "web_accessible_resources": [
-        "javascript/jquery.min.map",
-        "javascript/jquery-ui.min.map",
+        "javascript/ext/jquery.min.map",
+        "javascript/ext/jquery-ui.min.map",
         "feedlyconsole.css", 
         "stylesheets/styles.css",
         "stylesheets/jquery-ui.css",
         "feedlyconsole.html",
-        "inject.js",
         "http://themes.googleusercontent.com/static/fonts/sourcecodepro/v3/mrl8jkM18OlOQN8JLgasD9zbP97U9sKh0jjxbPbfOKg.ttf",
         "http://fonts.googleapis.com/css?family=Source+Code+Pro"
         
