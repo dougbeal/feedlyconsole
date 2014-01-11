@@ -21,9 +21,11 @@ coffeeFiles = [
 options = "--bare --output #{dstJavascriptDir} --map --compile"
 
 copySearchPath = [
+  'coffeescript'
   'josh.js/js'
   'josh.js/ext/optparse-js/lib'
   'chrome-extension'
+  'chrome-extension/icon'
   ]
 
 download_urls = [
@@ -44,6 +46,8 @@ destination_directories_by_ext =
   css: 'stylesheets'
   json: '.'
   html: '.'
+  png: 'icon'
+  coffee: 'src'
 
 download_filenames = (_.last(url.split '/') for url in download_urls)
 manifest_JSON = JSON.parse fs.readFileSync("chrome-extension/manifest.json",
@@ -54,16 +58,19 @@ for files in manifest_JSON["content_scripts"]
     manifest.push file
 for file in manifest_JSON["web_accessible_resources"]
   manifest.push file
+manifest = manifest.concat _.values manifest_JSON["icons"]
+manifest = manifest.concat _.values manifest_JSON["page_action"]['default_icon']
+
 manifest.push('manifest.json')
 
 include_filename = (filename) ->
   splt = filename.split '.'
   basename = splt[...-1].join '.'
   ext = _.last splt
-  cofp = filename not in coffeeFiles
+  #cofp = filename not in coffeeFiles
   dowp = filename not in download_filenames
   extp = ext of destination_directories_by_ext
-  return cofp and dowp and extp
+  return dowp and extp #cofp and
 
 
 filtered_manifest_filenames = []
@@ -250,9 +257,14 @@ task 'download', 'Download javascripts to dstExtJavascriptDir', ->
 
 gather_compile = () ->
   dstdir = path.join __dirname, dstJavascriptDir
-  dstfiles = (path.join(
+  dstfiles = _.flatten (path.join(
     dstdir,
-    "#{path.basename filename}.js") for filename in coffeeFiles)
+    filename
+      .split('.')[...-1]
+      .join('.') + ext) for filename in coffeeFiles for ext in [
+        '.map'
+        '.js'
+        ])
   srcfiles = (path.join(
     __dirname,
     srcCoffeeDir,
@@ -271,6 +283,20 @@ task 'compile', 'Compile coffeescripts to dstExtJavascriptDir', ->
     run "coffee #{options} #{srcfiles.join(' ')}", (err, out) ->
       util.error err if err?
       console.log 'compile: finished. ', out
+      for file in dstfiles
+        if path.extname(file) is '.map'
+          name = path.basename file
+          name = name.split('.')[...-1].join('.')
+          map = JSON.parse fs.readFileSync file
+          map.sourceRoot = ".."
+          map.sources = [
+            "src/#{name}.coffee"
+            ]
+          fs.writeFile file, JSON.stringify(map, null, 2), (err) ->
+            util.error err if err?
+            console.log "compile: patched #{file} paths"
+
+
 
 task 'build', 'Build chrome extension', ->
   invoke 'copy'
