@@ -1,0 +1,9 @@
+{ 
+    "name":           "feedlyconsole",
+    "devDependencies": 
+    {
+        "coffee-script": "latest",
+        "async": "latest",
+        "underscore": "latest"
+    }
+}

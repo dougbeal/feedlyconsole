@@ -40,10 +40,11 @@
         } 
     ],
     "web_accessible_resources": [
+        "javascript/background.map",
+        "javascript/feedlyconsole.map",
         "javascript/ext/jquery.min.map",
         "javascript/ext/jquery-ui.min.map",
-        "feedlyconsole.css", 
-        "stylesheets/styles.css",
+        "stylesheetss/feedlyconsole.css", 
         "stylesheets/jquery-ui.css",
         "feedlyconsole.html",
         "http://themes.googleusercontent.com/static/fonts/sourcecodepro/v3/mrl8jkM18OlOQN8JLgasD9zbP97U9sKh0jjxbPbfOKg.ttf",

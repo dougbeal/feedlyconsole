@@ -1,0 +1,11 @@
+
+* TODO ICONS
+
+** TODO build them
+
+** TODO copy them
+
+* TODO modify gh-pages to be build website
+
+** TODO links in index.html
+  
