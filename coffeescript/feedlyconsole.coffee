@@ -93,17 +93,21 @@ demo_data =
   preferences:
     autoMarkAsReadOnSelect: "50"
     "category/reviews/entryOverviewSize": "0"
-    "subscription/feed/http://feeds.engadget.com/weblogsinc/engadget/entryOverviewSize": "4"
-    "subscription/feed/http://www.yatzer.com/feed/index.php/hideReadArticlesFilter": "off"
+    "subscription/feed/http://
+feeds.engadget.com/weblogsinc/engadget/entryOverviewSize": "4"
+    "subscription/feed/http://
+www.yatzer.com/feed/index.php/hideReadArticlesFilter": "off"
     "category/photography/entryOverviewSize": "6"
-    "subscription/feed/http://feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
+    "subscription/feed/http://
+feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
 
 #//////////////////////////////////////////////////////////
 # based on josh.js:gh-pages githubconsole
 ((root, $, _) ->
   Josh.FeedlyConsole = ((root, $, _) ->
 
-    # Enable console debugging, when Josh.Debug is set and there is a console object on the document root.
+    # Enable console debugging, when Josh.Debug is set and there is a
+    # console object on the document root.
     _console = (if (Josh.Debug and window.console) then window.console else
       log: ->
       debug: ->
@@ -152,10 +156,17 @@ demo_data =
     # **templates.ls**
     # Override of the pathhandler ls template to create a multi-column listing.
     _self.shell.templates.ls = _.template """
-    <ul class='widelist'><% _.each(nodes, function(node) { %><li><%- node.name %></li><% }); %></ul><div class='clear'/>"""
+    <ul class='widelist'>
+      <% _.each(nodes, function(node) { %>
+        <li><%- node.name %></li>
+      <% }); %>
+    </ul><div class='clear'/>"""
 
     # **templates.not_found**
-    # Override of the pathhandler *not_found* template, since we will throw *not_found* if you try to access a valid file. This is done for the simplicity of the tutorial.
+
+    # Override of the pathhandler *not_found* template, since we will
+    # throw *not_found* if you try to access a valid file. This is
+    # done for the simplicity of the tutorial.
     _self.shell.templates.not_found = _.template """
     <div><%=cmd%>: <%=path%>: No such directory</div>
       """
@@ -193,10 +204,12 @@ demo_data =
       exec: (cmd, args, callback) ->
         get command_name, null, (data) ->
           return err("api request failed to get data")  unless data
-          template = _self.shell.templates[command_name] or _self.shell.templates.default_template
+          template = _self.shell.templates[command_name]
+          template = template or _self.shell.templates.default_template
           template_args = {}
           template_args[command_name] = template_args["data"] = data
-          _console.debug "[Josh.FeedlyConsole] data %O cmd %O args %O", data, cmd, args
+          _console.debug "[Josh.FeedlyConsole] data %O cmd %O args %O",
+          data, cmd, args
           callback template(template_args)
 
 
@@ -248,7 +261,8 @@ demo_data =
       # If the first part of path parts isn't empty, the path is a
       # relative path, which can be turned into an *absolutish* path
       # by pre-pending the parts of the current pathnode.
-      parts = getPathParts(_self.pathhandler.current.path).concat(parts)  if parts[0] isnt ""
+      parts = getPathParts(_self.pathhandler.current.path)
+      .concat(parts)  if parts[0] isnt ""
       # At this point the path is *absolutish*, i.e. looks absolute, but
       # all `.` and `..` mentions need to removed and resolved before it
       # is truly absolute.
@@ -284,7 +298,8 @@ demo_data =
       # Otherwise, if the child nodes have already been initialized,
       # which is done lazily, return them.
       if node.children
-        _console.debug "[Josh.FeedlyConsole] got children, let's turn them into nodes %O", node
+        _console.debug "[Josh.FeedlyConsole]
+ got children, let's turn them into nodes %O", node
         return callback(makeNodes(node.children))
       _console.debug "[Josh.FeedlyConsole] no children, fetch them %O", node
       # Finally, use `getDir` to fetch and populate the child nodes.
@@ -352,9 +367,11 @@ demo_data =
             limit: parseInt(xhr.getResponseHeader("X-RateLimit-Limit"))
             authenticated: xhr.getResponseHeader("Authenticated") is "true"
 
-          $("#ratelimit").html _self.shell.templates.rateLimitTemplate(ratelimit)
+          $("#ratelimit").html _self
+          .shell.templates.rateLimitTemplate(ratelimit)
           if ratelimit.remaining is 0
-            alert "Whoops, you've hit the github rate limit. You'll need to authenticate to continue"
+            alert "Whoops, you've hit the github rate limit. You'll need
+ to authenticate to continue"
             _self.shell.deactivate()
             return null
 
@@ -417,10 +434,13 @@ demo_data =
           attr = target.attributes.getNamedItem(name)
           value = ""
           value = attr.value  if attr isnt null
-          _console.debug "[feedlyconsole/observer] %s: [%s]=%s on %O", type, name, value, target
+          _console.debug "[feedlyconsole/observer] %s: [%s]=%s on %O",
+            type, name, value, target
 
           # not sure if wide will always be set, so trigger on the next mod
-          if not _found and ((name is "class" and value.indexOf("wide") isnt -1) or (name is "_pageid" and value.indexOf("rot21") isnt -1))
+          wide = name is "class" and value.indexOf("wide") isnt -1
+          page = name is "_pageid" and value.indexOf("rot21") isnt -1
+          if not _found and (wide or page)
             _console.debug "[feedlyconsole] mutation observer end %O", observer
             _found = true
             doInsertShellUI()
@@ -440,21 +460,22 @@ demo_data =
         _console.debug observer
         _console.debug config
         observer.observe target, config
-
+    ###
     #<section id='getDir'/>
 
     # getDir
     # ------
 
-    # This function function fetches the directory listing for a path on a given repo and branch.
+    # This function function fetches the directory listing for a path
+    # on a given repo and branch.
+    ###
     getDir = (path, callback) ->
       node = undefined
       name = undefined
 
       # remove trailing '/' for API requests.
-      path = path.substr(0, path.length - 1)  if path and path.length > 1 and path[path.length - 1] is "/"
+      path = path[...-1] if path and path.length > 1 and _.last path is "/"
       if not path or (path.length is 1 and path is "/")
-
         # item 0, root, each command a subdir
         name = "/"
         node =
@@ -471,16 +492,14 @@ demo_data =
         parts = parts.slice(1)  if parts[0] is ""
         name = parts[0]
         handler = _self.root_commands[name]
-        if handler is `undefined`
+        unless handler?
           callback()
         else if parts.length is 1
-
           # item 1, commands
           node =
             name: name
             path: path
             children: null
-
 
           # implicitly call command as part of path
           command = handler.exec
@@ -489,20 +508,20 @@ demo_data =
             _console.debug "[Josh.FeedlyConsole] json to nodes %O.", json
             node.children = makeJSONNodes(path, json, name)
             callback node
-
         else
-
           # item 2+, details
-          _console.debug "[Josh.FeedlyConsole] not implemented, path: %s, name %s", path, name
+          _console.debug "[Josh.FeedlyConsole]
+ not implemented, path: %s, name %s", path, name
           get "streams/"
-          callback `undefined`
-
+          callback null
+    ###
     #<section id='getPathParts'/>
 
     # getPathParts
     # ------------
 
     # This function splits a path on `/` and removes any empty trailing element.
+    ###
     getPathParts = (path) ->
       parts = path.split("/")
       return parts.slice(0, parts.length - 1)  if parts[parts.length - 1] is ""
@@ -596,7 +615,8 @@ demo_data =
         $consoletab.slideDown()
       _console.log "[Josh.FeedlyConsole] initializeUI."
       $consoletab = $("#consoletab")
-      console.error "failed to find %s", $consoletab.selector  if $consoletab.length is 0
+      console.error "failed to find %s",
+        $consoletab.selector  if $consoletab.length is 0
       $consoletab.hover (->
         $consoletab.addClass "consoletab-hover"
         $consoletab.removeClass "consoletab"
@@ -647,7 +667,7 @@ demo_data =
           _console.debug "[feedlyconsole] set api url: %s.", url
           _self.api = url
         else if request.action is "toggle_console"
-          if _self.ui.toggleActivateAndShow is `undefined`
+          unless _self.ui.toggleActivateAndShow?
             window.console.warn "[feedlyconsole] ui not yet ready"
           else
             _self.ui.toggleActivateAndShow()
@@ -655,7 +675,8 @@ demo_data =
           _self.OAuth = request.feedlytoken
           _console.debug "[feedlyconsole] token %s...", _self.OAuth.slice(0, 8)
         else
-          _console.debug "[feedlyconsole] unknown action %s request %O.", request.action, request
+          _console.debug "[feedlyconsole] unknown action %s request %O.",
+          request.action, request
         sendResponse action: "ack"
 
     else
