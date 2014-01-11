@@ -413,15 +413,15 @@ console.log "[feedlyconsole] loading %O", Josh
       observer.disconnect()
       file = "feedlyconsole.html"
       _console.debug "[feedlyconsole] injecting %s.", file
-      insertCSSLink "stylesheets/styles.css"
-
+      #insertCSSLink "stylesheets/styles.css"
       #insertCSSLink("stylesheets/source-code-pro.css");
       insertCSSLink "stylesheets/jquery-ui.css"
-      insertCSSLink "feedlyconsole.css"
+      insertCSSLink "stylesheets/feedlyconsole.css"
       feedlyconsole = $("<div/>",
         id: "feedlyconsole"
       ).load(chrome.extension.getURL(file), ->
-        _console.log "[feedlyconsole] loaded %s %O readline.attach %O.", file, $("#feedlyconsole"), this
+        _console.log "[feedlyconsole] loaded %s %O readline.attach %O.",
+        file, $("#feedlyconsole"), this
         Josh.config.readline.attach $("#shell-panel").get(0)
         initializeUI()
       )
