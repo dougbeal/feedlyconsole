@@ -18,6 +18,86 @@ Josh.config.pathhandler = new Josh.PathHandler(Josh.config.shell,
 )
 console.log "[feedlyconsole] loading %O", Josh
 
+demo_data =
+  tags: [
+    id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/global.saved"
+  ,
+    id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/tech"
+    label: "tech"
+  ,
+    id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/inspiration"
+    label: "inspiration"
+  ]
+  subscriptions: [
+    id: "feed/http://feeds.feedburner.com/design-milk"
+    title: "Design Milk"
+    categories: [
+      id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/design"
+      label: "design"
+    ,
+      id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/global.must"
+      label: "must reads"
+    ]
+    sortid: "26152F8F"
+    updated: 1367539068016
+    website: "http://design-milk.com"
+  ,
+    id: "feed/http://5secondrule.typepad.com/my_weblog/atom.xml"
+    title: "5 second rule"
+    categories: []
+    sortid: "26152F8F"
+    updated: 1367539068016
+    website: "http://5secondrule.typepad.com/my_weblog/"
+  ,
+    id: "feed/http://feed.500px.com/500px-editors"
+    title: "500px: Editors' Choice"
+    categories: [
+      id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/photography"
+      label: "photography"
+    ]
+    sortid: "26152F8F"
+    updated: 1367539068016
+    website: "http://500px.com/editors"
+  ]
+  profile:
+    id: "c805fcbf-3acf-4302-a97e-d82f9d7c897f"
+    email: "jim.smith@gmail.com"
+    givenName: "Jim"
+    familyName: "Smith"
+    picture: "img/download.jpeg"
+    gender: "male"
+    locale: "en"
+    reader: "9080770707070700"
+    google: "115562565652656565656"
+    twitter: "jimsmith"
+    facebook: ""
+    wave: "2013.7"
+  categories: [
+    id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/tech"
+    label: "tech"
+  ,
+    id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/design"
+    label: "design"
+  ]
+  topics: [
+    id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/topic/arduino"
+    interest: "high"
+    updated: 1367539068016
+    created: 1367539068016
+  ,
+    id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/topic/rock climbing"
+    interest: "low"
+    updated: 1367539068016
+    created: 1367539068016
+  ]
+  preferences:
+    autoMarkAsReadOnSelect: "50"
+    "category/reviews/entryOverviewSize": "0"
+    "subscription/feed/http://feeds.engadget.com/weblogsinc/engadget/entryOverviewSize": "4"
+    "subscription/feed/http://www.yatzer.com/feed/index.php/hideReadArticlesFilter": "off"
+    "category/photography/entryOverviewSize": "6"
+    "subscription/feed/http://feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
+
 #//////////////////////////////////////////////////////////
 # based on josh.js:gh-pages githubconsole
 ((root, $, _) ->
@@ -157,8 +237,9 @@ console.log "[feedlyconsole] loading %O", Josh
     # getNode
     # -------
 
-    # `getNode` is required by `Josh.PathHandler` to provide filesystem behavior. Given a path, it is expected to return
-    # a pathnode or null;
+    # `getNode` is required by `Josh.PathHandler` to provide
+    # filesystem behavior. Given a path, it is expected to return a
+    # pathnode or null;
     _self.pathhandler.getNode = (path, callback) ->
       _console.debug "[Josh.FeedlyConsole] looking for node at %s.", path
       # If the given path is empty, just return the current pathnode.
@@ -222,14 +303,16 @@ console.log "[feedlyconsole] loading %O", Josh
 
     # Supporting Functions
     # ====================
-
+    ###
     #<section id='get'/>
 
     # get
     # ---
 
-    # This function is responsible for all API requests, given a partial API path, `resource`, and an query argument object,
+    # This function is responsible for all API requests, given a
+    # partial API path, `resource`, and an query argument object,
     # `args`.
+    ###
     get = (resource, args, callback) ->
       cacheCallback = (value) ->
         _self[resource] = value
@@ -237,113 +320,11 @@ console.log "[feedlyconsole] loading %O", Josh
       url = _self.api + resource
       cache = _self[resource]
       return callback(cache)  if cache
-      if chrome.extension is `undefined`
-
+      unless chrome.extension?
         # not embedded, demo mode
-        switch resource
-          when "tags"
-            cacheCallback [
-              {
-                id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/global.saved"
-              }
-              {
-                id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/tech"
-                label: "tech"
-              }
-              {
-                id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/tag/inspiration"
-                label: "inspiration"
-              }
-            ]
-          when "subscriptions"
-            cacheCallback [
-              {
-                id: "feed/http://feeds.feedburner.com/design-milk"
-                title: "Design Milk"
-                categories: [
-                  {
-                    id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/design"
-                    label: "design"
-                  }
-                  {
-                    id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/global.must"
-                    label: "must reads"
-                  }
-                ]
-                sortid: "26152F8F"
-                updated: 1367539068016
-                website: "http://design-milk.com"
-              }
-              {
-                id: "feed/http://5secondrule.typepad.com/my_weblog/atom.xml"
-                title: "5 second rule"
-                categories: []
-                sortid: "26152F8F"
-                updated: 1367539068016
-                website: "http://5secondrule.typepad.com/my_weblog/"
-              }
-              {
-                id: "feed/http://feed.500px.com/500px-editors"
-                title: "500px: Editors' Choice"
-                categories: [
-                  id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/photography"
-                  label: "photography"
-                ]
-                sortid: "26152F8F"
-                updated: 1367539068016
-                website: "http://500px.com/editors"
-              }
-            ]
-          when "profile"
-            cacheCallback
-              id: "c805fcbf-3acf-4302-a97e-d82f9d7c897f"
-              email: "jim.smith@gmail.com"
-              givenName: "Jim"
-              familyName: "Smith"
-              picture: "img/download.jpeg"
-              gender: "male"
-              locale: "en"
-              reader: "9080770707070700"
-              google: "115562565652656565656"
-              twitter: "jimsmith"
-              facebook: ""
-              wave: "2013.7"
-
-          when "categories"
-            cacheCallback [
-              {
-                id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/tech"
-                label: "tech"
-              }
-              {
-                id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/category/design"
-                label: "design"
-              }
-            ]
-          when "topics"
-            cacheCallback [
-              {
-                id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/topic/arduino"
-                interest: "high"
-                updated: 1367539068016
-                created: 1367539068016
-              }
-              {
-                id: "user/c805fcbf-3acf-4302-a97e-d82f9d7c897f/topic/rock climbing"
-                interest: "low"
-                updated: 1367539068016
-                created: 1367539068016
-              }
-            ]
-          when "preferences"
-            cacheCallback
-              autoMarkAsReadOnSelect: "50"
-              "category/reviews/entryOverviewSize": "0"
-              "subscription/feed/http://feeds.engadget.com/weblogsinc/engadget/entryOverviewSize": "4"
-              "subscription/feed/http://www.yatzer.com/feed/index.php/hideReadArticlesFilter": "off"
-              "category/photography/entryOverviewSize": "6"
-              "subscription/feed/http://feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
-
+        demo = resource in demo_data
+        _self[resource] = if demo then demo_data[resource] else {}
+        callback _self[resource]
       else
         if args
           url += "?" + _.map(args, (v, k) ->
@@ -532,7 +513,8 @@ console.log "[feedlyconsole] loading %O", Josh
     # makeNodes
     # ---------
 
-    # This function builds child pathnodes from the directory information returned by getDir.
+    # This function builds child pathnodes from the directory
+    # information returned by getDir.
     makeNodes = (children) ->
       _console.debug "[Josh.FeedlyConsole] makeNodes %O.", children
       _.map children, (node) ->
@@ -577,20 +559,21 @@ console.log "[feedlyconsole] loading %O", Josh
     # initializationError
     # -------------------
 
-    # This function is a lazy way with giving up if some request failed during intialization, forcing the user
-    # to reload to retry.
+    # This function is a lazy way with giving up if some request
+    # failed during intialization, forcing the user to reload to
+    # retry.
     initializationError = (context, msg) ->
       _console.error "[%s] failed to initialize: %s.", context, msg
 
-    #alert("unable to initialize shell. Encountered a problem talking to github api. Try reloading the page");
 
     #<section id='initializeUI'/>
 
     # intializeUI
     # -----------
 
-    # After a current user and repo have been set, this function initializes the UI state to allow the shell to be
-    # shown and hidden.
+    # this function
+    # initializes the UI state to allow the shell to be shown and
+    # hidden.
     initializeUI = ->
 
       # We grab the `consoletab` and wire up hover behavior for it.
@@ -654,7 +637,8 @@ console.log "[feedlyconsole] loading %O", Josh
     # kind of a mess, but we only want to create one listener,
     # but initializeUI can be called multiple times because
     # feedly will blow away console that are added to early
-    if chrome.runtime isnt `undefined` # when in extension
+    if chrome.runtime?
+       # when in extension
       chrome.runtime.onMessage.addListener (request, sender, sendResponse) ->
         _console.debug "[feedlyconsole] msg: %s.", request.msg
         if request.action is "icon_active"
