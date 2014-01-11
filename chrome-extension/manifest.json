@@ -40,16 +40,17 @@
         } 
     ],
     "web_accessible_resources": [
-        "javascript/background.map",
-        "javascript/feedlyconsole.map",
-        "javascript/ext/jquery.min.map",
-        "javascript/ext/jquery-ui.min.map",
-        "stylesheetss/feedlyconsole.css", 
-        "stylesheets/jquery-ui.css",
         "feedlyconsole.html",
+        "http://fonts.googleapis.com/css?family=Source+Code+Pro",
         "http://themes.googleusercontent.com/static/fonts/sourcecodepro/v3/mrl8jkM18OlOQN8JLgasD9zbP97U9sKh0jjxbPbfOKg.ttf",
-        "http://fonts.googleapis.com/css?family=Source+Code+Pro"
-        
+        "javascript/background.map",
+        "javascript/ext/jquery-ui.min.map",
+        "javascript/ext/jquery.min.map",
+        "javascript/feedlyconsole.map",
+        "src/background.coffee",
+        "src/feedlyconsole.coffee",
+        "stylesheets/feedlyconsole.css", 
+        "stylesheets/jquery-ui.css"
     ],
     "page_action": {
         "default_title": "Feedly Console",
