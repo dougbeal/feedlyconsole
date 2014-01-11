@@ -1,0 +1,69 @@
+{
+    "name": "Feedly Console",
+    "description": "tilde or click to open console to enter feedly commands.",
+    "version": "1.0",
+    "manifest_version": 2,
+    "icons": {
+        "128": "icon/utilities-terminal-5_128.png", 
+        "16": "icon/utilities-terminal-5_16.png", 
+        "22": "icon/utilities-terminal-5_22.png", 
+        "32": "icon/utilities-terminal-5_32.png", 
+        "48": "icon/utilities-terminal-5_48.png"
+    },
+    "permissions" : [
+        "tabs",
+        "cookies",
+        "*://*.feedly.com/"
+    ],
+    "background" : {
+        "scripts": [
+            "javascript/background.js"
+        ]
+    },
+    "content_scripts": [
+        {
+            "run_at": "document_start",
+            "matches": [ "*://*.feedly.com/*" ],
+            "js": [
+                "javascript/ext/jquery.min.js",
+                "javascript/ext/jquery-ui.min.js",
+                "javascript/ext/underscore-min.js",
+                "javascript/ext/killring.js",
+                "javascript/ext/history.js",
+                "javascript/ext/readline.js",
+                "javascript/ext/shell.js",
+                "javascript/ext/pathhandler.js",
+                "javascript/ext/optparse.js",
+                "javascript/feedlyconsole.js"
+            ],
+            "all_frames": false
+        } 
+    ],
+    "web_accessible_resources": [
+        "javascript/ext/jquery.min.map",
+        "javascript/ext/jquery-ui.min.map",
+        "feedlyconsole.css", 
+        "stylesheets/styles.css",
+        "stylesheets/jquery-ui.css",
+        "feedlyconsole.html",
+        "http://themes.googleusercontent.com/static/fonts/sourcecodepro/v3/mrl8jkM18OlOQN8JLgasD9zbP97U9sKh0jjxbPbfOKg.ttf",
+        "http://fonts.googleapis.com/css?family=Source+Code+Pro"
+        
+    ],
+    "page_action": {
+        "default_title": "Feedly Console",
+        "default_icon": {
+            "19": "icon/utilities-terminal-5_19.png", 
+            "38": "icon/utilities-terminal-5_38.png"
+        }
+    },
+    "commands": {
+        "toggle-console": {
+            "suggested_key": {
+                "default": "Alt+C",
+                "mac": "Alt+C"
+            },
+            "description": "Toggle Console"
+        }
+    }
+}
