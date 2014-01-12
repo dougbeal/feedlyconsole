@@ -337,8 +337,9 @@ feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
       return callback(cache)  if cache
       unless chrome.extension?
         # not embedded, demo mode
-        demo = resource in demo_data
-        _self[resource] = if demo then demo_data[resource] else {}
+        demo = demo_data[resource]
+        demo = {} unless demo?
+        _self[resource] = demo
         callback _self[resource]
       else
         if args
@@ -400,13 +401,13 @@ feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
 
     # });
     insertCSSLink = (name) ->
-
+      console.debug "inserting css #{name}"
       # insert css into head
-      $("head").append $("<link/>",
+      $("head").append $ "<link/>",
         rel: "stylesheet"
         type: "text/css"
         href: chrome.extension.getURL(name)
-      )
+
     doInsertShellUI = ->
       observer.disconnect()
       file = "feedlyconsole.html"
@@ -615,8 +616,8 @@ feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
         $consoletab.slideDown()
       _console.log "[Josh.FeedlyConsole] initializeUI."
       $consoletab = $("#consoletab")
-      console.error "failed to find %s",
-        $consoletab.selector  if $consoletab.length is 0
+      if $consoletab.length is 0
+        console.error "failed to find %s", $consoletab.selector
       $consoletab.hover (->
         $consoletab.addClass "consoletab-hover"
         $consoletab.removeClass "consoletab"
