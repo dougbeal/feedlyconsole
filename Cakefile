@@ -307,14 +307,14 @@ task 'watch', 'Watch prod source files and build changes', ->
   console.log "Watching for changes."
   change = (event, filename) ->
     console.log "watch: #{filename} #{event}"
-    invoke 'copy'
-    invoke 'compile'
+    invoke 'build'
   [src, dst] = gather_compile()
   files = src
   [src, dst] = gather_copy()
   files.push.apply files, src
   for file in files
     fs.watch file, persistent: true, change
+  invoke 'build'
 
 task 'clean', 'Clean out the build directory', ->
   target = path.join __dirname, dstDir
