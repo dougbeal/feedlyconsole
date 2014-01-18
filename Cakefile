@@ -6,8 +6,6 @@ path = require 'path'
 async = require 'async'
 _ = require 'underscore'
 
-
-
 srcCoffeeDir = 'coffeescript'
 dstDir = 'build/chrome-extension'
 dstJavascriptDir = "#{dstDir}/javascript"
@@ -18,7 +16,7 @@ coffeeFiles = [
   'background.coffee'
   ]
 
-options = "--bare --output #{dstJavascriptDir} --map --compile"
+coffee_options = "--bare --output #{dstJavascriptDir} --map --compile"
 
 copySearchPath = [
   'coffeescript'
@@ -205,7 +203,7 @@ task 'gather_copy', 'List copy files', ->
   console.log 'filtered_manifest_filenames', filtered_manifest_filenames
   console.log 'gather_copy', gather_copy()
 
-task 'copy', 'Copy files to build directory.', ->
+task 'copy', 'Copy files to build directory.', (options, cb) ->
   [srcfiles, dstmap] = gather_copy()
   dstdirs = _.keys dstmap
   dstfiles = _.flatten _.values(dstmap), true
@@ -225,6 +223,7 @@ task 'copy', 'Copy files to build directory.', ->
             console.log 'copy:chmod_destinations, not writable: ',
               results.join(' ')
             console.log 'copy: finished'
+            cb err, results
 
 create_destinations = (next) ->
   dstdirs = _.uniq (path.join __dirname, dstDir,
@@ -243,7 +242,7 @@ chmod_destinations = (files, write_or_not, next) ->
   async.map chmodglobs, fn, (err, results) ->
     next? err, results
 
-task 'download', 'Download javascripts to dstExtJavascriptDir', ->
+task 'download', 'Download javascripts to dstExtJavascriptDir', (options, cb) ->
   create_destinations (err, results) ->
     util.error err if err?
     console.log "download:create_destinations: ", results.join(' ')
@@ -254,6 +253,7 @@ task 'download', 'Download javascripts to dstExtJavascriptDir', ->
         util.error err if err?
         console.log "download: chmod_destinations. ", results.join(' ')
         console.log 'download: finished.'
+        cb err, results
 
 gather_compile = () ->
   dstdir = path.join __dirname, dstJavascriptDir
@@ -274,49 +274,73 @@ gather_compile = () ->
 task 'gather_compile', 'List compile files', ->
   console.log gather_compile()
 
-task 'compile', 'Compile coffeescripts to dstExtJavascriptDir', ->
+patch_map_file = (file, next) ->
+  name = path.basename file
+  name = name.split('.')[...-1].join('.')
+  console.log "compile: patching #{file} paths"
+  map = JSON.parse fs.readFileSync file
+  map.sourceRoot = ".."
+  map.sources = [
+    "src/#{name}.coffee"
+    ]
+  fs.writeFile file, JSON.stringify(map, null, 2), (err) ->
+    util.error err if err?
+    next err, "#{file}"
+
+task 'compile', 'Compile coffeescripts to dstExtJavascriptDir', (options, cb) ->
   dstdir = path.join __dirname, dstJavascriptDir
   [srcfiles, dstfiles] = gather_compile()
   create_destinations (err, results) ->
     util.error err if err?
     console.log "compile.create_destinations: ", results.join(' ')
-    run "coffee #{options} #{srcfiles.join(' ')}", (err, out) ->
+    run "coffee #{coffee_options} #{srcfiles.join(' ')}", (err, out) ->
       util.error err if err?
-      console.log 'compile: finished. ', out
-      for file in dstfiles
-        if path.extname(file) is '.map'
-          name = path.basename file
-          name = name.split('.')[...-1].join('.')
-          map = JSON.parse fs.readFileSync file
-          map.sourceRoot = ".."
-          map.sources = [
-            "src/#{name}.coffee"
-            ]
-          fs.writeFile file, JSON.stringify(map, null, 2), (err) ->
-            util.error err if err?
-            console.log "compile: patched #{file} paths"
+      console.log 'compile: files created.', out
+      mapfiles = (file for file in dstfiles when path.extname(file) is '.map')
+      async.map mapfiles, patch_map_file, (err, results) ->
+        console.log( "compile: patched #{results}." )
+        console.log( "compile: finished." )
+        cb err, results
 
 
 
-task 'build', 'Build chrome extension', ->
-  invoke 'copy'
-  invoke 'download'
-  invoke 'compile'
+task 'build', 'Build chrome extension', (options, cb) ->
+  async.map [
+    'compile'
+    'download'
+    'copy'
+    ],
+    invoke
+    (err, results) ->
+      util.error err if err?
+      console.log "build: finished."
+      cb err, results
 
-task 'watch', 'Watch prod source files and build changes', ->
-  console.log "Watching for changes."
+task 'watch', 'Watch prod source files and build changes', (options, cb) ->
+  console.log "watch: Watching for changes."
+  _building = true
+  build_done = (err, results) ->
+    _building = false
+    console.log "watch: finished building."
+
   change = (event, filename) ->
     console.log "watch: #{filename} #{event}"
-    invoke 'build'
+    unless _building
+      _building = true
+      invoke 'build', build_done
+    else
+      console.log "watch: ignoring file watch, building in progress."
+
   [src, dst] = gather_compile()
   files = src
   [src, dst] = gather_copy()
   files.push.apply files, src
+
   for file in files
     fs.watch file, persistent: true, change
-  invoke 'build'
+  invoke 'build', build_done
 
-task 'clean', 'Clean out the build directory', ->
+task 'clean', 'Clean out the build directory', (options, cb) ->
   target = path.join __dirname, dstDir
   run "rm -rf #{target}", (err, out) ->
     util.error err if err?
