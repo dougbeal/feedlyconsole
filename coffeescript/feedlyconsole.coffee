@@ -206,43 +206,55 @@ class FeedlyNode
 
   constructor: (@name, @path, @json_data) ->
     @children = null
+    FeedlyNode._NODES[@path] = @
 
-  @initRootNode = ->
-    unless @_ROOT_NODE?
-      @_NODES[@_ROOT_PATH] = @_ROOT_NODE = new RootFeedlyNode()
+  @_initRootNode: =>
+    @_ROOT_NODE ?= new RootFeedlyNode()
 
-  @getNode = (path, callback) ->
-    _console.debug "[feedlyconsole:FeedlyNode] looking for node at '%s'.", path
-    @initRootNode()
-    return callback @_ROOT_NODE unless path?
-    return callback @_NODES[path] if path of @_NODES
+  @_getPathParts = (path) ->
+    parts = path.split("/")
+    #remove empty trailing element
+    return parts.slice(0, parts.length - 1)  if parts[parts.length - 1] is ""
+    return parts
 
-    parts = getPathParts(path)
-    # If the first part of path parts isn't empty, the path is a
-    # relative path, which can be turned into an *absolutish* path
-    # by pre-pending the parts of the current pathnode.
-    parts = getPathParts(_self.pathhandler.current.path)
-    .concat(parts)  if parts[0] isnt ""
-    # At this point the path is *absolutish*, i.e. looks absolute, but
-    # all `.` and `..` mentions need to removed and resolved before it
-    # is truly absolute.
-    resolved = []
+  @_current = ->
+    return Josh.config.pathhandler.current
+
+  @_resolvePath: (path) =>
+    parts = @_getPathParts(path)
+
+    # non-empty item 0 indicates relative path
+    # when relative, prepend _current path
+    parts = @_getPathParts(@_current().path).concat(parts) if parts[0] isnt ""
+
+    # resolve `.` and `..`
+    resolved = ['']
     _.each parts, (x) ->
-      return  if x is "."
+      return if x is "."
       if x is ".."
         resolved.pop()
       else
         resolved.push x
 
-    absolute = resolved.join("/")
-    _console.debug "[Josh.FeedlyConsole]path to fetch: " + absolute
-    # if get getDir returns false, use same node
-    return getDir(absolute, callback) or self.node
+    return resolved.join("/")
 
-  @getChildNodes = (node, callback) ->
+  @getNode: (path, callback) =>
+    @_initRootNode()
+    _console.debug "[feedlyconsole:FeedlyNode] looking for node at '%s'.", path
+    return callback @_ROOT_NODE unless path?
+    absolute = @_resolvePath path
+    _console.debug "[Josh.FeedlyConsole]path to fetch: " + absolute
+    return callback @_NODES[path] if path of @_NODES
+
+    #temporary hack
+    return callback @_ROOT_NODE
+
+
+  @getChildNodes: (node, callback) =>
+    @_initRootNode()
     node.getChildNodes callback
 
-  getChildNodes = (callback) ->
+  getChildNodes: (callback) ->
     # If the given node is a file node, no further work is required.
     if node.isFile
       _console.debug "[Josh.FeedlyConsole] it's a file, no children %O", node
@@ -260,15 +272,6 @@ class FeedlyNode
       node.children = detailNode.children
       callback node.children
 
-  ###
-  #<section id='getDir'/>
-
-  # getDir
-  # ------
-
-  # This function function fetches the directory listing for a path
-  # on a given repo and branch.
-  ###
   getDir = (path, callback) ->
     node = undefined
     name = undefined
@@ -323,10 +326,7 @@ class FeedlyNode
 
   # This function splits a path on `/` and removes any empty trailing element.
   ###
-  getPathParts = (path) ->
-    parts = path.split("/")
-    return parts.slice(0, parts.length - 1)  if parts[parts.length - 1] is ""
-    parts
+
 
   #<section id='makeNodes'/>
 
@@ -376,13 +376,14 @@ class RootFeedlyNode extends FeedlyNode
       FeedlyNode._ROOT_PATH,
       { cmds: FeedlyNode._ROOT_COMMANDS }
 
-
   getChildNodes: (callback) ->
-    unless @children
-      @children = (new FeedlyNode(name,
-        [@path, name].join('/'),
-        null) for name in FeedlyNode._ROOT_COMMANDS)
+    @children ?= (new FeedlyNode(name,
+      [@path, name].join('/'),
+      null) for name in FeedlyNode._ROOT_COMMANDS)
     return callback @children
+
+  toString: ->
+    return "#{@name} '#{@path}'"
 
 #//////////////////////////////////////////////////////////
 # based on josh.js:gh-pages githubconsole
