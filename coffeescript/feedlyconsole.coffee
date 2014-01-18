@@ -16,6 +16,11 @@ Josh.config.shell = new Josh.Shell(Josh.config)
 Josh.config.pathhandler = new Josh.PathHandler(Josh.config.shell,
   console: Josh.config.console
 )
+
+_console =
+  log: window.console.log
+  debug: window.console.debug
+
 console.log "[feedlyconsole] loading %O", Josh
 
 demo_data =
@@ -101,6 +106,98 @@ www.yatzer.com/feed/index.php/hideReadArticlesFilter": "off"
     "subscription/feed/http://
 feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
 
+FEEDLY_API_VERSION = "v3"
+
+
+
+class ApiRequest
+
+  constructor: (@url) ->
+    @_cache = {}
+
+  url: ->
+    @url
+
+  _url_parameters: (args) ->
+    "?" + _.map(args, (v, k) ->
+      k + "=" + v
+      ).join("&")
+
+  get: (resource, args, callback) ->
+    cache_entry = @_cache[resource]
+    if cache_entry
+      _console.debug "[Josh.FeedlyConsole] %s cached.", resource
+      return callback(cache_entry)
+      
+    unless chrome.extension?
+      # not embedded, demo mode
+      demo = demo_data[resource]
+      demo = {} unless demo?
+      @_cache[resource] = demo
+      callback demo, null, null
+    else
+      url = [ @url, resource ].join('/') + @_url_parameters args
+      _console.debug "[Josh.FeedlyConsole] fetching %s at %s.", resource, url
+      request = @build_request url
+
+
+      $.ajax(request).done (response, status, xhr) =>
+        @_cache[resource] = response
+        return callback response, status, xhr
+
+  build_request: (url) ->
+    url: url
+    dataType: "json"
+    xhrFields:
+      withCredentials: true
+
+
+class FeedlyApiRequest extends ApiRequest
+  constructor: (@url, @api_version, @oauth) ->
+    super([@url, @api_version].join('/'))
+
+  build_request: (url) ->
+    request = super(url)
+    request.headers = Authorization: "OAuth #{@oauth}"
+    return request
+    
+  get: (resource, args, callback) ->
+    return super resource, args, (response, status, xhr) ->
+      if response? and not status?
+        # Every response from the API includes rate limiting
+        # headers, as well as an indicator injected by the API proxy
+        # whether the request was done with authentication. Both are
+        # used to display request rate information and a link to
+        # authenticate, if required.
+        ratelimit =
+          remaining: parseInt xhr.getResponseHeader("X-RateLimit-Remaining")
+          limit: parseInt xhr.getResponseHeader("X-RateLimit-Limit")
+          authenticated: xhr.getResponseHeader("Authenticated") is "true"
+
+        $("#ratelimit").html _self
+        .shell.templates.rateLimitTemplate(ratelimit)
+        if ratelimit.remaining is 0
+          alert "Whoops, you've hit the rate limit."
+          _self.shell.deactivate()
+          return null
+
+        # For simplicity, this tutorial trivially deals with request
+        # failures by just returning null from this function via the
+        # callback.
+        callback(response)
+      else
+        if response? and response
+          return callback(response)
+        else
+          return callback()
+
+
+class FeedlyNode
+  constructor: (@name) ->
+
+
+
+
 #//////////////////////////////////////////////////////////
 # based on josh.js:gh-pages githubconsole
 ((root, $, _) ->
@@ -121,12 +218,11 @@ feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
     ###
     _self =
       shell: Josh.config.shell
-      api_version: "v3/"
-      api: "unset"
       OAuth: ""
       ui: {}
       root_commands: {}
       pathhandler: Josh.config.pathhandler
+      api: null
 
     ###
     # Custom Templates
@@ -171,6 +267,15 @@ feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
     <div><%=cmd%>: <%=path%>: No such directory</div>
       """
 
+    # **templates.not_ready**
+
+    # Override of the pathhandler *not_found* template, since we will
+    # throw *not_found* if you try to access a valid file. This is
+    # done for the simplicity of the tutorial.
+    _self.shell.templates.not_ready = _.template """
+    <div><%=cmd%>: <%=path%>: api is not ready</div>
+      """
+
     #**templates.rateLimitTemplate**
     # rate limiting will be added later to feedly api
 
@@ -202,15 +307,18 @@ feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
 
       # `exec` handles the execution of the command.
       exec: (cmd, args, callback) ->
-        get command_name, null, (data) ->
-          return err("api request failed to get data")  unless data
-          template = _self.shell.templates[command_name]
-          template = template or _self.shell.templates.default_template
-          template_args = {}
-          template_args[command_name] = template_args["data"] = data
-          _console.debug "[Josh.FeedlyConsole] data %O cmd %O args %O",
-          data, cmd, args
-          callback template(template_args)
+        if _self.api
+          _self.api.get command_name, null, (data) ->
+            return err("api request failed to get data")  unless data
+            template = _self.shell.templates[command_name]
+            template = template or _self.shell.templates.default_template
+            template_args = {}
+            template_args[command_name] = template_args["data"] = data
+            _console.debug "[Josh.FeedlyConsole] data %O cmd %O args %O",
+            data, cmd, args
+            callback template(template_args)
+        else
+          callback _self.shell.templates.not_ready({cmd})
 
 
     simple_commands = [
@@ -310,79 +418,6 @@ feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
 
 
 
-
-
-
-
-
-
-    # Supporting Functions
-    # ====================
-    ###
-    #<section id='get'/>
-
-    # get
-    # ---
-
-    # This function is responsible for all API requests, given a
-    # partial API path, `resource`, and an query argument object,
-    # `args`.
-    ###
-    get = (resource, args, callback) ->
-      cacheCallback = (value) ->
-        _self[resource] = value
-        callback value
-      url = _self.api + resource
-      cache = _self[resource]
-      return callback(cache)  if cache
-      unless chrome.extension?
-        # not embedded, demo mode
-        demo = demo_data[resource]
-        demo = {} unless demo?
-        _self[resource] = demo
-        callback _self[resource]
-      else
-        if args
-          url += "?" + _.map(args, (v, k) ->
-            k + "=" + v
-          ).join("&")
-        _console.debug "[Josh.FeedlyConsole] fetching %s.", url
-        request =
-          url: url
-          dataType: "json"
-          headers:
-            Authorization: "OAuth " + _self.OAuth
-
-          xhrFields:
-            withCredentials: true
-
-        $.ajax(request).done (response, status, xhr) ->
-
-          # Every response from the API includes rate limiting
-          # headers, as well as an indicator injected by the API proxy
-          # whether the request was done with authentication. Both are
-          # used to display request rate information and a link to
-          # authenticate, if required.
-          ratelimit =
-            remaining: parseInt(xhr.getResponseHeader("X-RateLimit-Remaining"))
-            limit: parseInt(xhr.getResponseHeader("X-RateLimit-Limit"))
-            authenticated: xhr.getResponseHeader("Authenticated") is "true"
-
-          $("#ratelimit").html _self
-          .shell.templates.rateLimitTemplate(ratelimit)
-          if ratelimit.remaining is 0
-            alert "Whoops, you've hit the github rate limit. You'll need
- to authenticate to continue"
-            _self.shell.deactivate()
-            return null
-
-          # For simplicity, this tutorial trivially deals with request
-          # failures by just returning null from this function via the
-          # callback.
-          return callback()  if status isnt "success"
-          cacheCallback response
-
-
     #<section id='initialize'/>
 
     # initalize
@@ -401,7 +436,7 @@ feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
 
     # });
     insertCSSLink = (name) ->
-      console.debug "inserting css #{name}"
+      console.debug "[feedlyconsole] inserting css #{name}"
       # insert css into head
       $("head").append $ "<link/>",
         rel: "stylesheet"
@@ -461,6 +496,8 @@ feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
         _console.debug observer
         _console.debug config
         observer.observe target, config
+
+
     ###
     #<section id='getDir'/>
 
@@ -663,18 +700,29 @@ feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
       chrome.runtime.onMessage.addListener (request, sender, sendResponse) ->
         _console.debug "[feedlyconsole] msg: %s.", request.msg
         if request.action is "icon_active"
-          url_array = request.url.split("/")
-          url = url_array[0] + "//" + url_array[2] + "/" + _self.api_version
-          _console.debug "[feedlyconsole] set api url: %s.", url
-          _self.api = url
+          _console.debug "[feedlyconsole/icon_active] ignore."
         else if request.action is "toggle_console"
           unless _self.ui.toggleActivateAndShow?
             window.console.warn "[feedlyconsole] ui not yet ready"
           else
             _self.ui.toggleActivateAndShow()
         else if request.action is "cookie_feedlytoken"
-          _self.OAuth = request.feedlytoken
-          _console.debug "[feedlyconsole] token %s...", _self.OAuth.slice(0, 8)
+          unless _self.api
+            OAuth = request.feedlytoken
+
+            url_array = request.url.split("/")
+            url = url_array[0] + "//" + url_array[2]
+            _console.debug """
+            [feedlyconsole/cookie_feedlytoken] url: %s oauth: %s.""",
+              url,
+              _self.OAuth.slice(0, 8)
+            _self.api = new FeedlyApiRequest(url,
+              FEEDLY_API_VERSION,
+              OAuth)
+          else
+            _console.debug """
+            [feedlyconsole/cookie_feedlytoken]
+             ignoreing, already initialized."""
         else
           _console.debug "[feedlyconsole] unknown action %s request %O.",
           request.action, request
