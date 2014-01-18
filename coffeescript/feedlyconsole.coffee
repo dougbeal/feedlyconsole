@@ -111,7 +111,6 @@ FEEDLY_API_VERSION = "v3"
 
 
 class ApiRequest
-
   constructor: (@url) ->
     @_cache = {}
 
@@ -128,7 +127,7 @@ class ApiRequest
     if cache_entry
       _console.debug "[Josh.FeedlyConsole] %s cached.", resource
       return callback(cache_entry)
-      
+
     unless chrome.extension?
       # not embedded, demo mode
       demo = demo_data[resource]
@@ -139,7 +138,6 @@ class ApiRequest
       url = [ @url, resource ].join('/') + @_url_parameters args
       _console.debug "[Josh.FeedlyConsole] fetching %s at %s.", resource, url
       request = @build_request url
-
 
       $.ajax(request).done (response, status, xhr) =>
         @_cache[resource] = response
@@ -160,7 +158,7 @@ class FeedlyApiRequest extends ApiRequest
     request = super(url)
     request.headers = Authorization: "OAuth #{@oauth}"
     return request
-    
+
   get: (resource, args, callback) ->
     return super resource, args, (response, status, xhr) ->
       if response? and not status?
@@ -193,10 +191,198 @@ class FeedlyApiRequest extends ApiRequest
 
 
 class FeedlyNode
-  constructor: (@name) ->
+  @_ROOT_COMMANDS: [
+      "profile"
+      "tags"
+      "subscriptions"
+      "preferences"
+      "categories"
+      "topics"
+    ]
+  @_ROOT_PATH: '/'
+  @_ROOT_NODE: null
+  @_NODES: {}
+  @_NODES[@_ROOT_PATH] = null
+
+  constructor: (@name, @path, @json_data) ->
+    @children = null
+
+  @initRootNode = ->
+    unless @_ROOT_NODE?
+      @_NODES[@_ROOT_PATH] = @_ROOT_NODE = new RootFeedlyNode()
+
+  @getNode = (path, callback) ->
+    _console.debug "[feedlyconsole:FeedlyNode] looking for node at '%s'.", path
+    @initRootNode()
+    return callback @_ROOT_NODE unless path?
+    return callback @_NODES[path] if path of @_NODES
+
+    parts = getPathParts(path)
+    # If the first part of path parts isn't empty, the path is a
+    # relative path, which can be turned into an *absolutish* path
+    # by pre-pending the parts of the current pathnode.
+    parts = getPathParts(_self.pathhandler.current.path)
+    .concat(parts)  if parts[0] isnt ""
+    # At this point the path is *absolutish*, i.e. looks absolute, but
+    # all `.` and `..` mentions need to removed and resolved before it
+    # is truly absolute.
+    resolved = []
+    _.each parts, (x) ->
+      return  if x is "."
+      if x is ".."
+        resolved.pop()
+      else
+        resolved.push x
+
+    absolute = resolved.join("/")
+    _console.debug "[Josh.FeedlyConsole]path to fetch: " + absolute
+    # if get getDir returns false, use same node
+    return getDir(absolute, callback) or self.node
+
+  @getChildNodes = (node, callback) ->
+    node.getChildNodes callback
+
+  getChildNodes = (callback) ->
+    # If the given node is a file node, no further work is required.
+    if node.isFile
+      _console.debug "[Josh.FeedlyConsole] it's a file, no children %O", node
+      return callback()
+    # Otherwise, if the child nodes have already been initialized,
+    # which is done lazily, return them.
+    if node.children
+      _console.debug """
+      [Josh.FeedlyConsole] got children, let's turn them into nodes %O"""
+      , node
+      return callback(makeNodes(node.children))
+    _console.debug "[Josh.FeedlyConsole] no children, fetch them %O", node
+    # Finally, use `getDir` to fetch and populate the child nodes.
+    getDir node.path, (detailNode) ->
+      node.children = detailNode.children
+      callback node.children
+
+  ###
+  #<section id='getDir'/>
+
+  # getDir
+  # ------
+
+  # This function function fetches the directory listing for a path
+  # on a given repo and branch.
+  ###
+  getDir = (path, callback) ->
+    node = undefined
+    name = undefined
+
+    # remove trailing '/' for API requests.
+    path = path[...-1] if path and path.length > 1 and _.last path is "/"
+    if not path or (path.length is 1 and path is "/")
+      # item 0, root, each command a subdir
+      name = "/"
+      node =
+        name: "/"
+        path: path
+        children: makeRootNodes()
+
+      _console.debug "[Josh.FeedlyConsole] root node %O.", node
+      callback node
+    else
+      parts = getPathParts(path)
+
+      # leading '/' produces empty item
+      parts = parts.slice(1)  if parts[0] is ""
+      name = parts[0]
+      handler = _self.root_commands[name]
+      unless handler?
+        callback()
+      else if parts.length is 1
+        # item 1, commands
+        node =
+          name: name
+          path: path
+          children: null
+
+        # implicitly call command as part of path
+        command = handler.exec
+        command "", "", (map) ->
+          json = _self[name]
+          _console.debug "[Josh.FeedlyConsole] json to nodes %O.", json
+          node.children = makeJSONNodes(path, json, name)
+          callback node
+      else
+        # item 2+, details
+        _console.debug """
+        [Josh.FeedlyConsole]
+        not implemented, path: %s, name %s""", path, name
+        get "streams/"
+        callback null
+  ###
+  #<section id='getPathParts'/>
+
+  # getPathParts
+  # ------------
+
+  # This function splits a path on `/` and removes any empty trailing element.
+  ###
+  getPathParts = (path) ->
+    parts = path.split("/")
+    return parts.slice(0, parts.length - 1)  if parts[parts.length - 1] is ""
+    parts
+
+  #<section id='makeNodes'/>
+
+  # makeNodes
+  # ---------
+
+  # This function builds child pathnodes from the directory
+  # information returned by getDir.
+  makeNodes = (children) ->
+    _console.debug "[Josh.FeedlyConsole] makeNodes %O.", children
+    _.map children, (node) ->
+      name: node.name
+      path: "/" + node.path
+      isFile: node.type is "leaf"
+
+  makeJSONNodes = (path, children, type) ->
+    if _.isArray(children)
+      nodes = _.map(children, (item) ->
+        name = item.label or item.title or item.id
+        $.extend
+          name: name
+          path: path + "/" + name
+          isFile: type is "leaf"
+        , item
+      )
+      nodes
+    else
+      _.map children, (value, key) ->
+        name = [
+          key
+          value
+        ].join(":")
+        name: name
+        path: path + "/" + name
+        isFile: type is "leaf"
+
+  makeRootNodes = ->
+    _.map _self.root_commands, (value, key, list) ->
+      name: key
+      path: "/" + key
+      type: "command"
+      isFile: "command" is "leaf"
+
+class RootFeedlyNode extends FeedlyNode
+  constructor: () ->
+    super FeedlyNode._ROOT_PATH,
+      FeedlyNode._ROOT_PATH,
+      { cmds: FeedlyNode._ROOT_COMMANDS }
 
 
-
+  getChildNodes: (callback) ->
+    unless @children
+      @children = (new FeedlyNode(name,
+        [@path, name].join('/'),
+        null) for name in FeedlyNode._ROOT_COMMANDS)
+    return callback @children
 
 #//////////////////////////////////////////////////////////
 # based on josh.js:gh-pages githubconsole
@@ -218,7 +404,6 @@ class FeedlyNode
     ###
     _self =
       shell: Josh.config.shell
-      OAuth: ""
       ui: {}
       root_commands: {}
       pathhandler: Josh.config.pathhandler
@@ -361,31 +546,7 @@ class FeedlyNode
     # `getNode` is required by `Josh.PathHandler` to provide
     # filesystem behavior. Given a path, it is expected to return a
     # pathnode or null;
-    _self.pathhandler.getNode = (path, callback) ->
-      _console.debug "[Josh.FeedlyConsole] looking for node at %s.", path
-      # If the given path is empty, just return the current pathnode.
-      return callback(_self.pathhandler.current)  unless path
-      parts = getPathParts(path)
-      # If the first part of path parts isn't empty, the path is a
-      # relative path, which can be turned into an *absolutish* path
-      # by pre-pending the parts of the current pathnode.
-      parts = getPathParts(_self.pathhandler.current.path)
-      .concat(parts)  if parts[0] isnt ""
-      # At this point the path is *absolutish*, i.e. looks absolute, but
-      # all `.` and `..` mentions need to removed and resolved before it
-      # is truly absolute.
-      resolved = []
-      _.each parts, (x) ->
-        return  if x is "."
-        if x is ".."
-          resolved.pop()
-        else
-          resolved.push x
-
-      absolute = resolved.join("/")
-      _console.debug "[Josh.FeedlyConsole]path to fetch: " + absolute
-      # if get getDir returns false, use same node
-      return getDir(absolute, callback) or self.node
+    _self.pathhandler.getNode = FeedlyNode.getNode
 
 
     #<section id='getChildNodes'/>
@@ -398,25 +559,7 @@ class FeedlyNode
     # child pathnodes. This is used by `Tab` completion to resolve a
     # partial path, after first resolving the nearest parent node
     # using `getNode
-    _self.pathhandler.getChildNodes = (node, callback) ->
-      # If the given node is a file node, no further work is required.
-      if node.isFile
-        _console.debug "[Josh.FeedlyConsole] it's a file, no children %O", node
-        return callback()
-      # Otherwise, if the child nodes have already been initialized,
-      # which is done lazily, return them.
-      if node.children
-        _console.debug "[Josh.FeedlyConsole]
- got children, let's turn them into nodes %O", node
-        return callback(makeNodes(node.children))
-      _console.debug "[Josh.FeedlyConsole] no children, fetch them %O", node
-      # Finally, use `getDir` to fetch and populate the child nodes.
-      getDir node.path, (detailNode) ->
-        node.children = detailNode.children
-        callback node.children
-
-
-
+    _self.pathhandler.getChildNodes = FeedlyNode.getChildNodes
 
     #<section id='initialize'/>
 
@@ -426,15 +569,10 @@ class FeedlyNode
     # This function sets the node
     initialize = (evt) -> #err, callback) {
       insertShellUI()
-      getDir "/", (node) ->
+      FeedlyNode.getNode "/", (node) ->
         return err("could not initialize root directory")  unless node
         _self.pathhandler.current = node
-        _self.root = node
 
-
-    # return feedlyconsole.ready(function() {
-
-    # });
     insertCSSLink = (name) ->
       console.debug "[feedlyconsole] inserting css #{name}"
       # insert css into head
@@ -496,116 +634,9 @@ class FeedlyNode
         _console.debug observer
         _console.debug config
         observer.observe target, config
-
-
-    ###
-    #<section id='getDir'/>
-
-    # getDir
-    # ------
-
-    # This function function fetches the directory listing for a path
-    # on a given repo and branch.
-    ###
-    getDir = (path, callback) ->
-      node = undefined
-      name = undefined
-
-      # remove trailing '/' for API requests.
-      path = path[...-1] if path and path.length > 1 and _.last path is "/"
-      if not path or (path.length is 1 and path is "/")
-        # item 0, root, each command a subdir
-        name = "/"
-        node =
-          name: "/"
-          path: path
-          children: makeRootNodes()
-
-        _console.debug "[Josh.FeedlyConsole] root node %O.", node
-        callback node
       else
-        parts = getPathParts(path)
-
-        # leading '/' produces empty item
-        parts = parts.slice(1)  if parts[0] is ""
-        name = parts[0]
-        handler = _self.root_commands[name]
-        unless handler?
-          callback()
-        else if parts.length is 1
-          # item 1, commands
-          node =
-            name: name
-            path: path
-            children: null
-
-          # implicitly call command as part of path
-          command = handler.exec
-          command "", "", (map) ->
-            json = _self[name]
-            _console.debug "[Josh.FeedlyConsole] json to nodes %O.", json
-            node.children = makeJSONNodes(path, json, name)
-            callback node
-        else
-          # item 2+, details
-          _console.debug "[Josh.FeedlyConsole]
- not implemented, path: %s, name %s", path, name
-          get "streams/"
-          callback null
-    ###
-    #<section id='getPathParts'/>
-
-    # getPathParts
-    # ------------
-
-    # This function splits a path on `/` and removes any empty trailing element.
-    ###
-    getPathParts = (path) ->
-      parts = path.split("/")
-      return parts.slice(0, parts.length - 1)  if parts[parts.length - 1] is ""
-      parts
-
-    #<section id='makeNodes'/>
-
-    # makeNodes
-    # ---------
-
-    # This function builds child pathnodes from the directory
-    # information returned by getDir.
-    makeNodes = (children) ->
-      _console.debug "[Josh.FeedlyConsole] makeNodes %O.", children
-      _.map children, (node) ->
-        name: node.name
-        path: "/" + node.path
-        isFile: node.type is "leaf"
-
-    makeJSONNodes = (path, children, type) ->
-      if _.isArray(children)
-        nodes = _.map(children, (item) ->
-          name = item.label or item.title or item.id
-          $.extend
-            name: name
-            path: path + "/" + name
-            isFile: type is "leaf"
-          , item
-        )
-        nodes
-      else
-        _.map children, (value, key) ->
-          name = [
-            key
-            value
-          ].join(":")
-          name: name
-          path: path + "/" + name
-          isFile: type is "leaf"
-
-    makeRootNodes = ->
-      _.map _self.root_commands, (value, key, list) ->
-        name: key
-        path: "/" + key
-        type: "command"
-        isFile: "command" is "leaf"
+        _console.debug "[feedlyconsole] #feedlyconsole found."
+        initializeUI()
 
 
     # UI setup and initialization
@@ -683,20 +714,14 @@ class FeedlyNode
 
 
 
-
-
-
-
-    observer = new MutationObserver(mutationHandler)
-    _console.log "[Josh.FeedlyConsole] initialize."
-    initialize()
-
     # wire up pageAction to toggle console
     # kind of a mess, but we only want to create one listener,
     # but initializeUI can be called multiple times because
     # feedly will blow away console that are added to early
-    if chrome.runtime?
-       # when in extension
+    if chrome.runtime?  # running in extension
+      _console.log "[Josh.FeedlyConsole] extension, initialize."
+      initialize()
+      observer = new MutationObserver(mutationHandler)
       chrome.runtime.onMessage.addListener (request, sender, sendResponse) ->
         _console.debug "[feedlyconsole] msg: %s.", request.msg
         if request.action is "icon_active"
@@ -728,10 +753,10 @@ class FeedlyNode
           request.action, request
         sendResponse action: "ack"
 
-    else
-      # running in webpage, not extension
+    else  # running in webpage
       $(document).ready ->
-        initializeUI()
+        _console.log "[Josh.FeedlyConsole] webpage, initialize."
+        initialize()
         _self.ui.activateAndShow()
 
     _self
