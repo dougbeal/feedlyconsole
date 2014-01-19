@@ -123,8 +123,12 @@ class ApiRequest
     unless chrome.extension?
       # not embedded, demo mode
       demo = demo_data[resource]
-      demo = {} unless demo?
-      callback demo, 'ok', null
+      status = if demo then 'ok' else 'error'
+      _console.debug "[apirequest] fetching %s %O, status %s.",
+        resource,
+        demo,
+        status
+      callback demo, status, null
     else
       url = [ @url, resource ].join('/') + @_url_parameters args
       _console.debug "[apirequest] fetching %s at %s.", resource, url
@@ -212,6 +216,7 @@ class FeedlyNode
     @children = null
     FeedlyNode._NODES[@path] = @
     @type ?= 'node'
+    _console.debug "[feedlyconsole:FeedlyNode] new '%s' %O.", @path, @
 
   @_initRootNode: =>
     @_ROOT_NODE ?= new RootFeedlyNode()
@@ -279,8 +284,10 @@ class FeedlyNode
       @getNode parent_path, (parent) =>
         _console.debug "[feedlyconsole:FeedlyNode.call_api_by_path]
  parent %O @ %s.", parent, parent_path
-        id = encodeURIComponent parent.getChildId(name)
-        @_api().get "streams/#{id}/contents", [], (response, status) ->
+        id = parent.getChildId(name)
+        return callback("", "error") unless id?
+        encoded_id = encodeURIComponent id
+        @_api().get "streams/#{encoded_id}/contents", [], (response, status) ->
           callback(response, status)
 
   @getChildNodes: (node, callback) =>
@@ -342,7 +349,7 @@ class RootFeedlyNode extends FeedlyNode
     unless @children?
       @children =[]
       for name in FeedlyNode._ROOT_COMMANDS
-        child_path = [@path, name].join('/')
+        child_path = [@path, name].join('')
         if child_path of FeedlyNode._NODES
           @children.push FeedlyNode._NODES.child_path
         else
@@ -454,6 +461,16 @@ class RootFeedlyNode extends FeedlyNode
           <td><%=profile.fullName %></td></tr>
       </table></div>"""
 
+    _self.shell.templates.info = _.template """
+    <div class='userinfo'>current:<pre><code>
+      <%= JSON.stringify(node, null, 2) %>
+        </code></pre>
+      nodes:<pre><code>
+        <%= JSON.stringify(nodes, null, 2) %>
+        </code></pre>
+
+    </div>"""
+
     # Adding Commands to the Console
     # ==============================
 
@@ -472,7 +489,7 @@ class RootFeedlyNode extends FeedlyNode
             data, cmd, args
             callback template(template_args)
         else
-          path = _self.pathahndler.current.path
+          path = _self.pathandler.current.path
           callback _self.shell.templates.not_ready({cmd, path})
 
 
@@ -494,6 +511,15 @@ class RootFeedlyNode extends FeedlyNode
       addCommandHandler command, buildExecCommandHandler(command)
 
     _self.root_commands.tags.help = "help here"
+
+    addCommandHandler 'info'
+    ,
+      exec: (cmd, args, callback) ->
+        callback _self.shell.templates.info(
+          node: _self.pathhandler.current
+          nodes: FeedlyNode._NODES
+        )
+      help: "info on current path node"
 
     #<section id='onNewPrompt'/>
 
@@ -605,8 +631,9 @@ class RootFeedlyNode extends FeedlyNode
 
           # not sure if wide will always be set, so trigger on the next mod
           wide = name is "class" and value.indexOf("wide") isnt -1
-          page = name is "_pageid" and value.indexOf("rot21") isnt -1
-          if not _found and (wide or page)
+          narrow = name is "class" and value.indexOf("narrow") isnt -1
+          page = name is "_pageid" and value.indexOf("rot2") isnt -1
+          if not _found and (wide or page or narrow)
             _console.debug "[feedlyconsole/init/observer]
  mutation observer end %O", _self.observer
             _found = true
@@ -689,18 +716,21 @@ class RootFeedlyNode extends FeedlyNode
         else if request.action is "cookie_feedlytoken"
           unless _self.api
             oauth = request.feedlytoken
-            url_array = request.url.split("/")
+            url_array = request.url.split "/"
             url = url_array[0] + "//" + url_array[2]
             _console.debug "[feedlyconsole/msg/cookie_feedlytoken]
  api init, url: %s oauth: %s.",
               url,
-              oauth.slice(0, 8)
+              oauth.slice 0, 8
             _self.api = new FeedlyApiRequest(url,
               FEEDLY_API_VERSION,
               oauth)
           else
+            oauth = request.feedlytoken.slice 0, 8
+            url = request.url
             _console.debug "[feedlyconsole/msg/cookie_feedlytoken]
- ignoring, api, url, oauth already initialized."
+ ignoring, api, url (%s), oauth (%s) already initialized.", url, oauth
+
         else
           _console.debug "[feedlyconsole/msg] unknown action %s request %O.",
           request.action, request
