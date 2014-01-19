@@ -108,11 +108,8 @@ feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
 
 FEEDLY_API_VERSION = "v3"
 
-
-
 class ApiRequest
   constructor: (@url) ->
-    @_cache = {}
 
   url: ->
     @url
@@ -123,24 +120,18 @@ class ApiRequest
       ).join("&")
 
   get: (resource, args, callback) ->
-    cache_entry = @_cache[resource]
-    if cache_entry
-      _console.debug "[Josh.FeedlyConsole] %s cached.", resource
-      return callback(cache_entry)
-
     unless chrome.extension?
       # not embedded, demo mode
       demo = demo_data[resource]
       demo = {} unless demo?
-      @_cache[resource] = demo
-      callback demo, null, null
+      callback demo, 'ok', null
     else
       url = [ @url, resource ].join('/') + @_url_parameters args
-      _console.debug "[Josh.FeedlyConsole] fetching %s at %s.", resource, url
+      _console.debug "[apirequest] fetching %s at %s.", resource, url
       request = @build_request url
-
-      $.ajax(request).done (response, status, xhr) =>
-        @_cache[resource] = response
+      $.ajax(request).always (response, status, xhr) ->
+        _console.debug "[apirequest] '%s' status '%s' response %O xhr %O.",
+          resource, status, response, xhr
         return callback response, status, xhr
 
   build_request: (url) ->
@@ -153,13 +144,25 @@ class ApiRequest
 class FeedlyApiRequest extends ApiRequest
   constructor: (@url, @api_version, @oauth) ->
     super([@url, @api_version].join('/'))
+    @resources = [
+      "profile"
+      "tags"
+      "subscriptions"
+      "preferences"
+      "categories"
+      "topics"
+    ]
 
   build_request: (url) ->
     request = super(url)
     request.headers = Authorization: "OAuth #{@oauth}"
     return request
 
+  validate_resource: (resource, args) ->
+    return resource in @resources
+
   get: (resource, args, callback) ->
+    return callback null, 'error', null unless @validate_resource resource, args
     return super resource, args, (response, status, xhr) ->
       if response? and not status?
         # Every response from the API includes rate limiting
@@ -182,10 +185,10 @@ class FeedlyApiRequest extends ApiRequest
         # For simplicity, this tutorial trivially deals with request
         # failures by just returning null from this function via the
         # callback.
-        callback(response)
+        callback(response, status)
       else
         if response? and response
-          return callback(response)
+          return callback(response, status)
         else
           return callback()
 
@@ -204,22 +207,27 @@ class FeedlyNode
   @_NODES: {}
   @_NODES[@_ROOT_PATH] = null
 
-  constructor: (@name, @path, @json_data) ->
+  constructor: (@name, @path, @type, @json_data) ->
     @children = null
     FeedlyNode._NODES[@path] = @
+    @type ?= 'node'
 
   @_initRootNode: =>
     @_ROOT_NODE ?= new RootFeedlyNode()
 
-  @_getPathParts = (path) ->
+  @_getPathParts: (path) ->
     parts = path.split("/")
     #remove empty trailing element
     return parts.slice(0, parts.length - 1)  if parts[parts.length - 1] is ""
     return parts
 
-  @_current = ->
+  @_current: ->
     return Josh.config.pathhandler.current
 
+  @_api:  ->
+    return Josh.FeedlyConsole.api
+
+  # normalize path
   @_resolvePath: (path) =>
     parts = @_getPathParts(path)
 
@@ -228,7 +236,7 @@ class FeedlyNode
     parts = @_getPathParts(@_current().path).concat(parts) if parts[0] isnt ""
 
     # resolve `.` and `..`
-    resolved = ['']
+    resolved = []
     _.each parts, (x) ->
       return if x is "."
       if x is ".."
@@ -236,150 +244,86 @@ class FeedlyNode
       else
         resolved.push x
 
+    return "/" if not resolved? or resolved.length is 1
     return resolved.join("/")
+
 
   @getNode: (path, callback) =>
     @_initRootNode()
     _console.debug "[feedlyconsole:FeedlyNode] looking for node at '%s'.", path
     return callback @_ROOT_NODE unless path?
-    absolute = @_resolvePath path
-    _console.debug "[Josh.FeedlyConsole]path to fetch: " + absolute
-    return callback @_NODES[path] if path of @_NODES
+    normalized = @_resolvePath path
+    _console.debug "[feedlyconsole:FeedlyNode] normalized path '%s'", normalized
+    return callback @_NODES[normalized] if normalized of @_NODES
 
-    #temporary hack
-    return callback @_ROOT_NODE
+    name = _.last normalized.split('/')
+    @call_api_by_path normalized, (json, status) ->
+      if status is 'error'
+        callback null
+      else
+        node = new FeedlyNode(name, normalized, 'name', json)
+        return callback node
 
+  @call_api_by_path: (path, callback) ->
+    parts = path.split('/')
+    @_api().get _.last(parts), [], (response, status) ->
+      callback(response, status)
 
   @getChildNodes: (node, callback) =>
     @_initRootNode()
     node.getChildNodes callback
 
   getChildNodes: (callback) ->
-    # If the given node is a file node, no further work is required.
-    if node.isFile
-      _console.debug "[Josh.FeedlyConsole] it's a file, no children %O", node
-      return callback()
-    # Otherwise, if the child nodes have already been initialized,
-    # which is done lazily, return them.
-    if node.children
-      _console.debug """
-      [Josh.FeedlyConsole] got children, let's turn them into nodes %O"""
-      , node
-      return callback(makeNodes(node.children))
-    _console.debug "[Josh.FeedlyConsole] no children, fetch them %O", node
-    # Finally, use `getDir` to fetch and populate the child nodes.
-    getDir node.path, (detailNode) ->
-      node.children = detailNode.children
-      callback node.children
-
-  getDir = (path, callback) ->
-    node = undefined
-    name = undefined
-
-    # remove trailing '/' for API requests.
-    path = path[...-1] if path and path.length > 1 and _.last path is "/"
-    if not path or (path.length is 1 and path is "/")
-      # item 0, root, each command a subdir
-      name = "/"
-      node =
-        name: "/"
-        path: path
-        children: makeRootNodes()
-
-      _console.debug "[Josh.FeedlyConsole] root node %O.", node
-      callback node
+    if @type is 'leaf'
+      @children = null
     else
-      parts = getPathParts(path)
+      @children ?= @makeJSONNodes()
+    return callback @children
 
-      # leading '/' produces empty item
-      parts = parts.slice(1)  if parts[0] is ""
-      name = parts[0]
-      handler = _self.root_commands[name]
-      unless handler?
-        callback()
-      else if parts.length is 1
-        # item 1, commands
-        node =
-          name: name
-          path: path
-          children: null
+  makeJSONNodes: (type) ->
+    if _.isArray(@json_data)
+      nodes = _.map @json_data, (item) =>
+        name = item.label or item.title or item.id
+        path = [@path, name].join '/'
+        json = item
+        return new FeedlyNode name, path, 'node', json
+      nodes
+    else
+      # its a map, so all children are leaves
+      _.map @json_data, (value, key) =>
+        name = [
+          key
+          value
+        ].join(":")
+        json =
+          key: value
+        return new FeedlyNode name, @path, 'leaf', json
 
-        # implicitly call command as part of path
-        command = handler.exec
-        command "", "", (map) ->
-          json = _self[name]
-          _console.debug "[Josh.FeedlyConsole] json to nodes %O.", json
-          node.children = makeJSONNodes(path, json, name)
-          callback node
-      else
+###
         # item 2+, details
         _console.debug """
         [Josh.FeedlyConsole]
         not implemented, path: %s, name %s""", path, name
         get "streams/"
         callback null
-  ###
-  #<section id='getPathParts'/>
-
-  # getPathParts
-  # ------------
-
-  # This function splits a path on `/` and removes any empty trailing element.
-  ###
-
-
-  #<section id='makeNodes'/>
-
-  # makeNodes
-  # ---------
-
-  # This function builds child pathnodes from the directory
-  # information returned by getDir.
-  makeNodes = (children) ->
-    _console.debug "[Josh.FeedlyConsole] makeNodes %O.", children
-    _.map children, (node) ->
-      name: node.name
-      path: "/" + node.path
-      isFile: node.type is "leaf"
-
-  makeJSONNodes = (path, children, type) ->
-    if _.isArray(children)
-      nodes = _.map(children, (item) ->
-        name = item.label or item.title or item.id
-        $.extend
-          name: name
-          path: path + "/" + name
-          isFile: type is "leaf"
-        , item
-      )
-      nodes
-    else
-      _.map children, (value, key) ->
-        name = [
-          key
-          value
-        ].join(":")
-        name: name
-        path: path + "/" + name
-        isFile: type is "leaf"
-
-  makeRootNodes = ->
-    _.map _self.root_commands, (value, key, list) ->
-      name: key
-      path: "/" + key
-      type: "command"
-      isFile: "command" is "leaf"
+###
 
 class RootFeedlyNode extends FeedlyNode
   constructor: () ->
     super FeedlyNode._ROOT_PATH,
       FeedlyNode._ROOT_PATH,
       { cmds: FeedlyNode._ROOT_COMMANDS }
+    @type = 'root'
 
   getChildNodes: (callback) ->
-    @children ?= (new FeedlyNode(name,
-      [@path, name].join('/'),
-      null) for name in FeedlyNode._ROOT_COMMANDS)
+    unless @children?
+      @children =[]
+      for name in FeedlyNode._ROOT_COMMANDS
+        child_path = [@path, name].join('/')
+        if child_path of FeedlyNode._NODES
+          @children.push FeedlyNode._NODES.child_path
+        else
+          @children.push new FeedlyNode(name, child_path, 'leaf', null)
     return callback @children
 
   toString: ->
@@ -409,6 +353,7 @@ class RootFeedlyNode extends FeedlyNode
       root_commands: {}
       pathhandler: Josh.config.pathhandler
       api: null
+      observer: null
 
     ###
     # Custom Templates
@@ -500,11 +445,12 @@ class RootFeedlyNode extends FeedlyNode
             template = template or _self.shell.templates.default_template
             template_args = {}
             template_args[command_name] = template_args["data"] = data
-            _console.debug "[Josh.FeedlyConsole] data %O cmd %O args %O",
+            _console.debug "[feedlyconsole/handler] data %O cmd %O args %O",
             data, cmd, args
             callback template(template_args)
         else
-          callback _self.shell.templates.not_ready({cmd})
+          path = _self.pathahndler.current.path
+          callback _self.shell.templates.not_ready({cmd, path})
 
 
     simple_commands = [
@@ -535,7 +481,7 @@ class RootFeedlyNode extends FeedlyNode
         node: _self.pathhandler.current
       )
 
-
+    ###
     # Wiring up PathHandler
     # =====================
 
@@ -547,9 +493,10 @@ class RootFeedlyNode extends FeedlyNode
     # `getNode` is required by `Josh.PathHandler` to provide
     # filesystem behavior. Given a path, it is expected to return a
     # pathnode or null;
+    ###
     _self.pathhandler.getNode = FeedlyNode.getNode
 
-
+    ###
     #<section id='getChildNodes'/>
 
     # getChildNodes
@@ -560,12 +507,15 @@ class RootFeedlyNode extends FeedlyNode
     # child pathnodes. This is used by `Tab` completion to resolve a
     # partial path, after first resolving the nearest parent node
     # using `getNode
+    ###
     _self.pathhandler.getChildNodes = FeedlyNode.getChildNodes
 
+    ###
     #<section id='initialize'/>
-
+    #
     # initalize
     # --------------
+    ###
 
     # This function sets the node
     initialize = (evt) -> #err, callback) {
@@ -575,7 +525,7 @@ class RootFeedlyNode extends FeedlyNode
         _self.pathhandler.current = node
 
     insertCSSLink = (name) ->
-      console.debug "[feedlyconsole] inserting css #{name}"
+      _console.debug "[feedlyconsole/init] inserting css #{name}"
       # insert css into head
       $("head").append $ "<link/>",
         rel: "stylesheet"
@@ -583,9 +533,9 @@ class RootFeedlyNode extends FeedlyNode
         href: chrome.extension.getURL(name)
 
     doInsertShellUI = ->
-      observer.disconnect()
+      _self.observer.disconnect() if _self.observer?
       file = "feedlyconsole.html"
-      _console.debug "[feedlyconsole] injecting %s.", file
+      _console.debug "[feedlyconsole/init] injecting shell ui from %s.", file
       #insertCSSLink "stylesheets/styles.css"
       #insertCSSLink("stylesheets/source-code-pro.css");
       insertCSSLink "stylesheets/jquery-ui.css"
@@ -593,12 +543,30 @@ class RootFeedlyNode extends FeedlyNode
       feedlyconsole = $("<div/>",
         id: "feedlyconsole"
       ).load(chrome.extension.getURL(file), ->
-        _console.log "[feedlyconsole] loaded %s %O readline.attach %O.",
+        _console.log "[feedlyconsole/init]
+ loaded shell ui %s %O readline.attach %O.",
         file, $("#feedlyconsole"), this
         Josh.config.readline.attach $("#shell-panel").get(0)
         initializeUI()
       )
       $("body").prepend feedlyconsole
+
+    insertShellUI = ->
+      if $("#feedlyconsole").length is 0
+        target = document
+        config =
+          attributes: true
+          subtree: true
+        _console.debug "[feedlyconsole/init/observer]
+ mutation observer start target %O config %O",
+          target,
+          config
+        _self.observer.observe target, config if _self.observer
+      else
+        _console.debug "[feedlyconsole/init/shell] #feedlyconsole found."
+        initializeUI()
+
+    # watch body writing until its stable enough to doInsertShellUI
     mutationHandler = (mutationRecords) ->
       _found = false
       mutationRecords.forEach (mutation) ->
@@ -609,64 +577,27 @@ class RootFeedlyNode extends FeedlyNode
           attr = target.attributes.getNamedItem(name)
           value = ""
           value = attr.value  if attr isnt null
-          _console.debug "[feedlyconsole/observer] %s: [%s]=%s on %O",
+          _console.debug "[feedlyconsole/init/observer] %s: [%s]=%s on %O",
             type, name, value, target
 
           # not sure if wide will always be set, so trigger on the next mod
           wide = name is "class" and value.indexOf("wide") isnt -1
           page = name is "_pageid" and value.indexOf("rot21") isnt -1
           if not _found and (wide or page)
-            _console.debug "[feedlyconsole] mutation observer end %O", observer
+            _console.debug "[feedlyconsole/init/observer]
+ mutation observer end %O", _self.observer
             _found = true
             doInsertShellUI()
 
             # found what we were looking for
             null
 
-    insertShellUI = ->
-      if $("#feedlyconsole").length is 0
-        _console.debug "[feedlyconsole] mutation observer start"
-        target = document
-        config =
-          attributes: true
-          subtree: true
-
-        _console.debug target
-        _console.debug observer
-        _console.debug config
-        observer.observe target, config
-      else
-        _console.debug "[feedlyconsole] #feedlyconsole found."
-        initializeUI()
-
-
-    # UI setup and initialization
-    # ===========================
-
-    #<section id='initializationError'/>
-
-    # initializationError
-    # -------------------
-
-    # This function is a lazy way with giving up if some request
-    # failed during intialization, forcing the user to reload to
-    # retry.
-    initializationError = (context, msg) ->
-      _console.error "[%s] failed to initialize: %s.", context, msg
-
-
-    #<section id='initializeUI'/>
-
-    # intializeUI
-    # -----------
 
     # this function
     # initializes the UI state to allow the shell to be shown and
     # hidden.
     initializeUI = ->
-
       # We grab the `consoletab` and wire up hover behavior for it.
-
       # We also wire up a click handler to show the console to the `consoletab`.
       toggleActivateAndShow = ->
         if _self.shell.isActive()
@@ -683,7 +614,7 @@ class RootFeedlyNode extends FeedlyNode
         $consolePanel.slideUp()
         $consolePanel.blur()
         $consoletab.slideDown()
-      _console.log "[Josh.FeedlyConsole] initializeUI."
+      _console.log "[feedlyconsole/init] initializeUI."
       $consoletab = $("#consoletab")
       if $consoletab.length is 0
         console.error "failed to find %s", $consoletab.selector
@@ -705,59 +636,60 @@ class RootFeedlyNode extends FeedlyNode
           event.preventDefault()
           activateAndShow()
       )
-      _self.ui.toggleActivateAndShow = toggleActivateAndShow
-      _self.ui.activateAndShow = activateAndShow
-      _self.ui.hideAndDeactivate = hideAndDeactivate
+
       _self.shell.onEOT hideAndDeactivate
       _self.shell.onCancel hideAndDeactivate
 
+      # export ui functions so they can be called by background page
+      # via page action icon
+      _self.ui.toggleActivateAndShow = toggleActivateAndShow
+      _self.ui.activateAndShow = activateAndShow
+      _self.ui.hideAndDeactivate = hideAndDeactivate
 
-
-
-
-    # wire up pageAction to toggle console
-    # kind of a mess, but we only want to create one listener,
-    # but initializeUI can be called multiple times because
-    # feedly will blow away console that are added to early
     if chrome.runtime?  # running in extension
-      _console.log "[Josh.FeedlyConsole] extension, initialize."
+      _console.log "[feedlyconsole/init] in extension contex, initializing."
+
+      _console.debug "[feedlyconsole/init] mutationHandler installed."
+      _self.observer = new MutationObserver(mutationHandler)
       initialize()
-      observer = new MutationObserver(mutationHandler)
+
+      # listener to messages from background page
       chrome.runtime.onMessage.addListener (request, sender, sendResponse) ->
-        _console.debug "[feedlyconsole] msg: %s.", request.msg
+        _console.debug "[feedlyconsole/msg] msg: %s.", request.msg
         if request.action is "icon_active"
-          _console.debug "[feedlyconsole/icon_active] ignore."
+          _console.debug "[feedlyconsole/msg/icon_active] ignore."
         else if request.action is "toggle_console"
           unless _self.ui.toggleActivateAndShow?
-            window.console.warn "[feedlyconsole] ui not yet ready"
+            window.console.warn "[feedlyconsole/msg] ui not ready."
           else
             _self.ui.toggleActivateAndShow()
         else if request.action is "cookie_feedlytoken"
           unless _self.api
-            OAuth = request.feedlytoken
-
+            oauth = request.feedlytoken
             url_array = request.url.split("/")
             url = url_array[0] + "//" + url_array[2]
-            _console.debug """
-            [feedlyconsole/cookie_feedlytoken] url: %s oauth: %s.""",
+            _console.debug "[feedlyconsole/msg/cookie_feedlytoken]
+ api init, url: %s oauth: %s.",
               url,
-              _self.OAuth.slice(0, 8)
+              oauth.slice(0, 8)
             _self.api = new FeedlyApiRequest(url,
               FEEDLY_API_VERSION,
-              OAuth)
+              oauth)
           else
-            _console.debug """
-            [feedlyconsole/cookie_feedlytoken]
-             ignoreing, already initialized."""
+            _console.debug "[feedlyconsole/msg/cookie_feedlytoken]
+ ignoring, api, url, oauth already initialized."
         else
-          _console.debug "[feedlyconsole] unknown action %s request %O.",
+          _console.debug "[feedlyconsole/msg] unknown action %s request %O.",
           request.action, request
         sendResponse action: "ack"
 
     else  # running in webpage
       $(document).ready ->
-        _console.log "[Josh.FeedlyConsole] webpage, initialize."
+        _console.log "[feedlyconsole/init] webpage context, initialize."
         initialize()
+        _self.api = new FeedlyApiRequest("",
+          FEEDLY_API_VERSION,
+          null)
         _self.ui.activateAndShow()
 
     _self
