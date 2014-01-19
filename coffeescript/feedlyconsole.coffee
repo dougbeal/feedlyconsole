@@ -151,6 +151,7 @@ class FeedlyApiRequest extends ApiRequest
       "preferences"
       "categories"
       "topics"
+      "streams"
     ]
 
   build_request: (url) ->
@@ -159,7 +160,7 @@ class FeedlyApiRequest extends ApiRequest
     return request
 
   validate_resource: (resource, args) ->
-    return resource in @resources
+    return _.find @resources, (str) -> resource.indexOf(str) is 0
 
   get: (resource, args, callback) ->
     return callback null, 'error', null unless @validate_resource resource, args
@@ -266,31 +267,61 @@ class FeedlyNode
 
   @call_api_by_path: (path, callback) ->
     parts = path.split('/')
-    @_api().get _.last(parts), [], (response, status) ->
-      callback(response, status)
+    _console.debug "[feedlyconsole:FeedlyNode.call_api_by_path]
+ depth %i, %O.", parts.length, parts
+    if parts.length is 2 # [ "", "profile" ]
+      @_api().get _.last(parts), [], (response, status) ->
+        callback(response, status)
+    else # [ "", "categories", "blackberry" ]
+      # get parent node
+      parent_path = parts[0...-1].join '/'
+      name = _.last parts
+      @getNode parent_path, (parent) =>
+        _console.debug "[feedlyconsole:FeedlyNode.call_api_by_path]
+ parent %O @ %s.", parent, parent_path
+        id = encodeURIComponent parent.getChildId(name)
+        @_api().get "streams/#{id}/contents", [], (response, status) ->
+          callback(response, status)
 
   @getChildNodes: (node, callback) =>
     @_initRootNode()
     node.getChildNodes callback
 
+  call_api_by_path: ->
+    FeedlyNode.call_api_by_path @path, (json, status) ->
+      @json_data = json
+
+  # match title or label to get id
+  getChildId: (name) ->
+    @call_api_by_path unless @json_data?
+    if _.isArray(@json_data)
+      item = _.find @json_data, (item) ->
+        _.find ['title', 'label', 'id'], (field) ->
+          item[field] is name
+      return item.id if item?
+    return null
+
   getChildNodes: (callback) ->
     if @type is 'leaf'
       @children = null
     else
+      @call_api_by_path unless @json_data?
       @children ?= @makeJSONNodes()
     return callback @children
 
-  makeJSONNodes: (type) ->
-    if _.isArray(@json_data)
-      nodes = _.map @json_data, (item) =>
-        name = item.label or item.title or item.id
+  makeJSONNodes: (json) ->
+    json ?= @json_data
+    if _.isArray(json)
+      nodes = _.map json, (item) =>
+        name = item.title or item.label or item.id
         path = [@path, name].join '/'
-        json = item
-        return new FeedlyNode name, path, 'node', json
-      nodes
+        type = if 'id' of item then 'node' else 'leaf'
+        json = if 'id' of item then null else item
+        return new FeedlyNode name, path, type, json
+      return nodes
     else
       # its a map, so all children are leaves
-      _.map @json_data, (value, key) =>
+      _.map json, (value, key) =>
         name = [
           key
           value
@@ -299,14 +330,6 @@ class FeedlyNode
           key: value
         return new FeedlyNode name, @path, 'leaf', json
 
-###
-        # item 2+, details
-        _console.debug """
-        [Josh.FeedlyConsole]
-        not implemented, path: %s, name %s""", path, name
-        get "streams/"
-        callback null
-###
 
 class RootFeedlyNode extends FeedlyNode
   constructor: () ->
