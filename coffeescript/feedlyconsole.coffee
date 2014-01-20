@@ -300,9 +300,10 @@ class FeedlyNode
     @_initRootNode()
     node.getChildNodes callback
 
-  call_api_by_path: ->
-    FeedlyNode.call_api_by_path @path, (json, status) ->
+  call_api_by_path: (callback) ->
+    FeedlyNode.call_api_by_path @path, (json, status) =>
       @json_data = json
+      callback(json)
 
   # match title or label to get id
   getChildId: (name) ->
@@ -317,10 +318,14 @@ class FeedlyNode
   getChildNodes: (callback) ->
     if @type is 'leaf'
       @children = null
+      return callback @children
     else
-      @call_api_by_path() unless @json_data?
-      @children ?= @makeJSONNodes()
-    return callback @children
+      unless @json_data?
+        @call_api_by_path =>
+          @children ?= @makeJSONNodes()
+          return callback @children
+      else
+        return callback @children
 
   makeJSONNodes: (json) ->
     json ?= @json_data
