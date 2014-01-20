@@ -1,8 +1,16 @@
+_console =
+  log: window.console.log
+  debug: window.console.debug
+
+_josh_disable_console =
+  log: () ->
+  debug: () ->
+
 Josh = Josh or {}
 Josh.Debug = true
 Josh.config =
   history: new Josh.History()
-  console: window.console
+  console: _josh_disable_console
   killring: new Josh.KillRing()
   readline: null
   shell: null
@@ -17,9 +25,7 @@ Josh.config.pathhandler = new Josh.PathHandler(Josh.config.shell,
   console: Josh.config.console
 )
 
-_console =
-  log: window.console.log
-  debug: window.console.debug
+
 
 console.log "[feedlyconsole] loading %O", Josh
 
@@ -312,12 +318,13 @@ class FeedlyNode
     if @type is 'leaf'
       @children = null
     else
-      @call_api_by_path unless @json_data?
+      @call_api_by_path() unless @json_data?
       @children ?= @makeJSONNodes()
     return callback @children
 
   makeJSONNodes: (json) ->
     json ?= @json_data
+    json = json.items if 'items' of json
     if _.isArray(json)
       nodes = _.map json, (item) =>
         name = item.title or item.label or item.id
@@ -351,9 +358,9 @@ class RootFeedlyNode extends FeedlyNode
       for name in FeedlyNode._ROOT_COMMANDS
         child_path = [@path, name].join('')
         if child_path of FeedlyNode._NODES
-          @children.push FeedlyNode._NODES.child_path
+          @children.push FeedlyNode._NODES[child_path]
         else
-          @children.push new FeedlyNode(name, child_path, 'leaf', null)
+          @children.push new FeedlyNode(name, child_path, 'node', null)
     return callback @children
 
   toString: ->
