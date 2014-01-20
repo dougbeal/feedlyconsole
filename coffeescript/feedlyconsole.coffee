@@ -1,6 +1,7 @@
 _console =
-  log: window.console.log
-  debug: window.console.debug
+  log: window.console.log.bind window.console
+  debug: window.console.debug.bind window.console
+
 
 _josh_disable_console =
   log: () ->
@@ -10,7 +11,7 @@ Josh = Josh or {}
 Josh.Debug = true
 Josh.config =
   history: new Josh.History()
-  console: _josh_disable_console
+  console: _console
   killring: new Josh.KillRing()
   readline: null
   shell: null
@@ -130,17 +131,17 @@ class ApiRequest
       # not embedded, demo mode
       demo = demo_data[resource]
       status = if demo then 'ok' else 'error'
-      _console.debug "[apirequest] fetching %s %O, status %s.",
+      _console.debug "[feedlyconsole/apirequest] fetching %s %O, status %s.",
         resource,
         demo,
         status
       callback demo, status, null
     else
       url = [ @url, resource ].join('/') + @_url_parameters args
-      _console.debug "[apirequest] fetching %s at %s.", resource, url
+      _console.debug "[feedlyconsole/apirequest] fetching %s at %s.", resource, url
       request = @build_request url
       $.ajax(request).always (response, status, xhr) ->
-        _console.debug "[apirequest] '%s' status '%s' response %O xhr %O.",
+        _console.debug "[feedlyconsole/apirequest] '%s' status '%s' response %O xhr %O.",
           resource, status, response, xhr
         return callback response, status, xhr
 
@@ -222,7 +223,7 @@ class FeedlyNode
     @children = null
     FeedlyNode._NODES[@path] = @
     @type ?= 'node'
-    _console.debug "[feedlyconsole:FeedlyNode] new '%s' %O.", @path, @
+    _console.debug "[feedlyconsole/FeedlyNode] new '%s' %O.", @path, @
 
   @_initRootNode: =>
     @_ROOT_NODE ?= new RootFeedlyNode()
@@ -262,10 +263,10 @@ class FeedlyNode
 
   @getNode: (path, callback) =>
     @_initRootNode()
-    _console.debug "[feedlyconsole:FeedlyNode] looking for node at '%s'.", path
+    _console.debug "[feedlyconsole/FeedlyNode] looking for node at '%s'.", path
     return callback @_ROOT_NODE unless path?
     normalized = @_resolvePath path
-    _console.debug "[feedlyconsole:FeedlyNode] normalized path '%s'", normalized
+    _console.debug "[feedlyconsole/FeedlyNode] normalized path '%s'", normalized
     return callback @_NODES[normalized] if normalized of @_NODES
 
     name = _.last normalized.split('/')
@@ -278,7 +279,7 @@ class FeedlyNode
 
   @call_api_by_path: (path, callback) ->
     parts = path.split('/')
-    _console.debug "[feedlyconsole:FeedlyNode.call_api_by_path]
+    _console.debug "[feedlyconsole/FeedlyNode.call_api_by_path]
  depth %i, %O.", parts.length, parts
     if parts.length is 2 # [ "", "profile" ]
       @_api().get _.last(parts), [], (response, status) ->
@@ -288,7 +289,7 @@ class FeedlyNode
       parent_path = parts[0...-1].join '/'
       name = _.last parts
       @getNode parent_path, (parent) =>
-        _console.debug "[feedlyconsole:FeedlyNode.call_api_by_path]
+        _console.debug "[feedlyconsole/FeedlyNode.call_api_by_path]
  parent %O @ %s.", parent, parent_path
         id = parent.getChildId(name)
         return callback("", "error") unless id?
@@ -325,6 +326,7 @@ class FeedlyNode
           @children ?= @makeJSONNodes()
           return callback @children
       else
+        @children ?= @makeJSONNodes()
         return callback @children
 
   makeJSONNodes: (json) ->
@@ -474,14 +476,9 @@ class RootFeedlyNode extends FeedlyNode
       </table></div>"""
 
     _self.shell.templates.info = _.template """
-    <div class='userinfo'>current:<pre><code>
-      <%= JSON.stringify(node, null, 2) %>
-        </code></pre>
-      nodes:<pre><code>
-        <%= JSON.stringify(nodes, null, 2) %>
-        </code></pre>
-
-    </div>"""
+    <div class='node'><code>
+      <pre><%= JSON.stringify(nodes, null, 2) %></pre>
+    </code></div>"""
 
     # Adding Commands to the Console
     # ==============================
@@ -526,12 +523,50 @@ class RootFeedlyNode extends FeedlyNode
 
     addCommandHandler 'info'
     ,
-      exec: (cmd, args, callback) ->
-        callback _self.shell.templates.info(
-          node: _self.pathhandler.current
-          nodes: FeedlyNode._NODES
-        )
+      exec: do ->
+        options = {}
+        parser = new optparse.OptionParser [
+          ['-h', '--help', "Command help"]]
+
+        parser.on "help", ->
+          options.help = true
+          this.halt()
+
+        parser.on 0, (subcommand)->
+          options.subcommand = subcommand
+          this.halt()
+
+        parser.on '*', ->
+          options.error = true
+          this.halt()
+
+        (cmd, args, callback) ->
+          #reset parser/state
+          options = {}
+          parser._halt = false
+
+          parser.parse args
+          _console.debug "[feedlconsole/info] args %s options %s",
+            args.join(' '), JSON.stringify options
+          nodes = _self.pathhandler.current
+          if options.help
+            return callback _self.shell.templates.options
+              help_string: parser.toString() +
+              '\n  CMD Specify which node, or all'
+          else if options.subcommand
+            switch options.subcommand
+              when "all" then nodes = FeedlyNode._NODES
+              else nodes = FeedlyNode.getNode options.subcommand, (node) ->
+                if node
+                  return callback _self.shell.templates.info {nodes: node}
+                else
+                  return callback _self.shell.templates.not_found
+                    cmd: 'info'
+                    path: options.subcommand
+          return callback _self.shell.templates.info
+            nodes: nodes
       help: "info on current path node"
+      completion: Josh.config.pathhandler.pathCompletionHandler
 
     #<section id='onNewPrompt'/>
 
