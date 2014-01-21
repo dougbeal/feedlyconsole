@@ -13,10 +13,24 @@ dstExtJavascriptDir = "#{dstJavascriptDir}/ext"
 
 coffeeFiles = [
   'feedlyconsole.coffee'
+  'feedlyconsole_test.coffee'
   'background.coffee'
   ]
 
+include_test_files = (file for file in coffeeFiles when file
+.indexOf('_test.coffee') >= 0)
+
 coffee_options = "--bare --output #{dstJavascriptDir} --map --compile"
+
+compile_files =
+  'chrome-extension/manifest.json': '_data/manifest.yaml'
+
+compile =
+  'json':
+    'yaml': (src, dst) ->
+      "node_modules/.bin/json2yaml '#{src}' > '#{dst}'"
+
+
 
 copySearchPath = [
   'coffeescript'
@@ -36,6 +50,9 @@ download_urls = [
   "http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.5.2/underscore-min.map"
   "http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.5.2/underscore.js"
   "http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css"
+  "https://raw.github.com/jquery/jquery-simulate/master/jquery.simulate.js"
+  #"https://raw.github.com/mojombo/tpw/master/css/syntax.css"
+  "https://raw.github.com/madhur/madhur.github.com/master/files/css/syntax.css"
   ]
 
 destination_directories_by_ext =
@@ -79,6 +96,7 @@ for file in manifest
 
 #  args = [], opts = [], next
 run = (cmd, optional...) ->
+  # args, opts, next
   opts = {}
   args = []
   switch optional.length
@@ -92,13 +110,22 @@ run = (cmd, optional...) ->
         next = last
       else
         opts = last
-      args = optional.pop()
+
+      last = optional.pop()
+      if _.isArray last
+        args = last
+      else
+        opts = last
+
     when 1
       last = optional.pop()
       if typeof last is 'function'
         next = last
       else
-        args = last
+        if _.isArray last
+          args = last
+        else
+          opts = last
     when 0
     else
       throw
@@ -106,18 +133,22 @@ run = (cmd, optional...) ->
 
   args_joined = args.join(' ')
   cmd_string = "#{cmd} #{args_joined}"
+  output = null
   try
     child = exec cmd_string, opts, (error, stdout, stderr)->
-      output = "#{cmd_string}"
+      output = "run:cmd:'#{cmd_string}'"
       if opts? and not _.isEmpty(opts)
-        output = "#{output} #{JSON.stringify(opts)}"
-      output = "#{output} #{error}" if error?
-      output = "#{output} >> #{stdout.trim()}" if stdout.length > 0
-      output = "#{output}  stderr:#{stderr.trim()}" if stderr.length > 0
-      if error? then util.error output
+        output = "#{output} opts:'#{JSON.stringify(opts)}'"
+      #output = "#{output} error:'#{error}'" if error?
+      output = "#{output} stdout:'#{stdout.trim()}'" if stdout.length > 0
+      if not error? and stderr.length > 0
+        # if error is set, stderr is redundant
+        output = "#{output}  stderr:'#{stderr.trim()}'"
       next? error, output
   catch error
+    console.error 'caught error'
     util.error error
+    next? error, output
 
 #need to run synchronously or at least sequentially
 cp_chmod = (src, dst, next) ->
@@ -165,12 +196,15 @@ curl = (url, next) ->
   fs.exists filepath, (exists) ->
     if exists
       basename = path.basename filepath
-      next? null, "curl: #{basename} exists, not downloading."
+      next? false, "curl: #{basename} exists, not downloading."
     else
-      run 'curl', ['-sSO', url], cwd: cwd, next
+      run "curl -sSO \"#{url}\"", cwd: cwd, next
 
+task 'info2', 'test this', ->
+  invoke 'info'
 
-task 'test', 'Print out internal state', ->
+task 'info', 'Print out internal state', ->
+  console.log @name
   console.log "test filtered_manifest_filenames #{filtered_manifest_filenames}."
   run 'ls|wc'
   run 'ls|wc', [], cwd: 'chrome-extension'
@@ -180,14 +214,20 @@ task 'test', 'Print out internal state', ->
     run 'ls coffeescript'
   run 'ls', ['javascript'], cwd: 'chrome-extension', ->
     run 'ls', ['stylesheets'], cwd: 'chrome-extension', ->
-      run 'pwd', ['stylesheets'], cwd: 'chrome-extension'
+      run 'pwd', ['stylesheets'], cwd: 'chrome-extension', (err, out) ->
+        console.log out
+  run 'pwd', cwd: dstJavascriptDir, (err, out) ->
+    console.log out
+  run 'ls', cwd: dstJavascriptDir, (err, out) ->
+    console.log out
 
 gather_copy = () ->
   srcfiles = []
   dstfiles = {}
   for srcpath in copySearchPath
     for file in fs.readdirSync(srcpath)
-      if file in filtered_manifest_filenames
+      if (file in filtered_manifest_filenames or
+      file in include_test_files)
         srcfile = path.join __dirname, srcpath, file
         srcfiles.push(srcfile)
         dst = get_destination_by_ext(file)
@@ -201,29 +241,37 @@ task 'gather_copy', 'List copy files', ->
   console.log 'manifest', manifest
   console.log 'download_filenames', download_filenames
   console.log 'filtered_manifest_filenames', filtered_manifest_filenames
+  console.log 'include_test_files', include_test_files
   console.log 'gather_copy', gather_copy()
 
 task 'copy', 'Copy files to build directory.', (options, cb) ->
   [srcfiles, dstmap] = gather_copy()
   dstdirs = _.keys dstmap
   dstfiles = _.flatten _.values(dstmap), true
-  create_destinations (err, results) ->
-    util.error err if err?
-    console.log 'copy:create_destinations  ', results.join(' ')
-    chmod_destinations dstfiles, true, (err, results) ->
-      util.error err if err?
-      console.log 'copy:chmod_destinations, writable ', results.join(' ')
+  errors = []
+  results = []
+  create_destinations (e, r) ->
+    errors.push e if e?
+    results.push r.join(' ')
+    console.log "copy:create_destinations count #{r.length} err #{e?}"
+    chmod_destinations dstfiles, true, (e, r) ->
+      errors.push e if e?
+      results.push r.join(' ')
+      console.log "copy:chmod_destinations count #{r.length} err #{e?}"
       async.map dstdirs,
         ((key, next) -> cp dstmap[key].join(' '), key, next),
-        (err, results) ->
-          util.error err if err?
-          console.log 'copy:cp  ', results.join(' ')
-          chmod_destinations dstfiles, false, (err, results) ->
-            util.error err if err?
-            console.log 'copy:chmod_destinations, not writable: ',
-              results.join(' ')
+        (e, r) ->
+          errors.push e if e?
+          console.log "copy:cp count #{r.length} err #{e?}"
+          chmod_destinations dstfiles, false, (e, r) ->
+            errors.push e if e?
+            results.push r.join(' ')
+            console.log "copy:chmod_destinations count #{r.length} err #{e?}"
+            if errors?.length > 0
+              console.error errors
+              console.log results
             console.log 'copy: finished'
-            cb err, results
+            cb? errors, results
 
 create_destinations = (next) ->
   dstdirs = _.uniq (path.join __dirname, dstDir,
@@ -237,23 +285,28 @@ chmod_destinations = (files, write_or_not, next) ->
   for ext, dir of destination_directories_by_ext when ext in target_ext
     chmodglobs.push path.join __dirname, dstDir, dir, "*.#{ext}"
   chmodglobs = _.uniq chmodglobs
-  console.log target_ext, chmodglobs
   fn = if write_or_not then write else nowrite
   async.map chmodglobs, fn, (err, results) ->
     next? err, results
 
 task 'download', 'Download javascripts to dstExtJavascriptDir', (options, cb) ->
-  create_destinations (err, results) ->
-    util.error err if err?
-    console.log "download:create_destinations: ", results.join(' ')
-    async.map download_urls, curl, (err, results) ->
-      util.error err if err?
-      console.log "download:map curl", err, results
-      chmod_destinations download_urls, false, (err, results) ->
-        util.error err if err?
-        console.log "download: chmod_destinations. ", results.join(' ')
+  errors = []
+  results = []
+  create_destinations (e, r) ->
+    console.log "download:create_destinations  count #{r.length} err #{e?}"
+    errors.push e if e?
+    results.push r.join(' ')
+    async.map download_urls, curl, (e, r) ->
+      console.log "download:map curl", e, r
+      errors.push e if e?
+      results.push r.join(' ')
+      chmod_destinations download_urls, false, (e, r) ->
+        console.log "download: chmod_destinations  count #{r.length} err #{e?}"
+        if errors?.length > 0
+          console.error errors
+          console.log results
         console.log 'download: finished.'
-        cb err, results
+        cb? errors, results
 
 gather_compile = () ->
   dstdir = path.join __dirname, dstJavascriptDir
@@ -277,65 +330,123 @@ task 'gather_compile', 'List compile files', ->
 patch_map_file = (file, next) ->
   name = path.basename file
   name = name.split('.')[...-1].join('.')
-  console.log "compile: patching #{file} paths"
   map = JSON.parse fs.readFileSync file
   map.sourceRoot = ".."
   map.sources = [
     "src/#{name}.coffee"
     ]
-  fs.writeFile file, JSON.stringify(map, null, 2), (err) ->
-    util.error err if err?
-    next err, "#{file}"
+  fs.writeFile file, JSON.stringify(map, null, 2), (e) ->
+    r = "#{file}"
+    r = "error:#{r}" if err?
+    next e, r
 
 task 'compile', 'Compile coffeescripts to dstExtJavascriptDir', (options, cb) ->
+  task = 'compile'
   dstdir = path.join __dirname, dstJavascriptDir
   [srcfiles, dstfiles] = gather_compile()
-  create_destinations (err, results) ->
-    util.error err if err?
-    console.log "compile.create_destinations: ", results.join(' ')
-    run "coffee #{coffee_options} #{srcfiles.join(' ')}", (err, out) ->
-      util.error err if err?
-      console.log 'compile: files created.', out
+  errors = []
+  results = []
+  create_destinations (e, r) ->
+    console.log "#{task}:create_destinations  count #{r.length} err #{e?}"
+    errors.push e if e?
+    results.push r.join(' ')
+    run "coffee #{coffee_options} #{srcfiles.join(' ')}", (e, r) ->
+      console.log "#{task}: #{r}"
+      errors.push e if e?
+      results.push r
       mapfiles = (file for file in dstfiles when path.extname(file) is '.map')
-      async.map mapfiles, patch_map_file, (err, results) ->
-        console.log( "compile: patched #{results}." )
-        console.log( "compile: finished." )
-        cb err, results
+      async.map mapfiles, patch_map_file, (e, r) ->
+        console.log "#{task}: patched #{r}."
+        errors.push e if e?
+        results.push r
+        console.log( "#{task}: finished." )
+        cb? errors, results
 
 
+task 'site', 'Build Jekyll _site', (options, cb) ->
+  task = @name
+  errors = []
+  results = []
+  run "jekyll build --trace", (e, r) ->
+    console.log "#{task}: #{r}."
+    errors.push e if e?
+    results.push r
+    console.log( "#{task}: finished." )
+    cb? errors, results
 
 task 'build', 'Build chrome extension', (options, cb) ->
+  task = @name
+  errors = []
+  results = []
   async.map [
     'compile'
     'download'
     'copy'
     ],
-    invoke
-    (err, results) ->
-      util.error err if err?
-      console.log "build: finished."
-      cb err, results
+    invoke,
+    (error, results) ->
+      errors.push e if e?
+      results.push r
+      invoke 'site', (error, results) ->
+        errors.push e if e?
+        results.push r
+        invoke 'test', (error, results) ->
+          errors.push e if e?
+          results.push r
+          console.log "#{task}: finished."
+          console.error "#{task}: error", errors if errors?.length > 0
+          cb? errors, results
+
+gather_test = () ->
+  [srcfiles, dstfiles] = gather_compile()
+  testfiles = (file for file in dstfiles when file.indexOf('_test.js') >= 0)
+  return testfiles
+
+task 'test', 'Run tests', (options, cb) ->
+  task = 'test'
+  testfiles = gather_test()
+  errors = []
+  results = []
+  mod = "u+x"
+  async.map testfiles, (do ->
+    (dest, next) -> return globchmod dest, mod, next),
+    (e, r) ->
+      console.log "#{task}:globchmod #{mod} count #{r.length} err #{e?}."
+      errors.push e if e?
+      results.push r
+      run "NODE_PATH=. NODE_DEBUG=t
+ mocha #{testfiles.join ' ' }", cwd: dstJavascriptDir,
+      (e, r) ->
+        errors.push e if e?
+        console.error "#{task}:error", errors if errors?.length > 0
+        console.log "#{task}: ", r
+        console.log "#{task}: finished."
+        cb errors, results
+
 
 task 'watch', 'Watch prod source files and build changes', (options, cb) ->
-  console.log "watch: Watching for changes."
+  task = 'watch'
+  console.log "#{task}: Watching for changes."
   _building = true
   build_done = (err, results) ->
     _building = false
-    console.log "watch: finished building."
+    console.error "#{task}: ", err if err
+    console.log "#{task}: ", results if results
+    console.log "#{task}: finished building."
 
   change = (event, filename) ->
-    console.log "watch: #{filename} #{event}"
+    console.log "#{task}: #{filename} #{event}"
     unless _building
       _building = true
       invoke 'build', build_done
     else
-      console.log "watch: ignoring file watch, building in progress."
+      console.log "#{task}: ignoring file watch, building in progress."
 
   [src, dst] = gather_compile()
   files = src
   [src, dst] = gather_copy()
   files.push.apply files, src
-
+  console.log "#{task}: #{path.basename file for file in files}."
   for file in files
     fs.watch file, persistent: true, change
   invoke 'build', build_done
