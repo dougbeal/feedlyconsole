@@ -254,24 +254,17 @@ task 'copy', 'Copy files to build directory.', (options, cb) ->
     errors.push e if e?
     results.push r.join(' ')
     console.log "copy:create_destinations count #{r.length} err #{e?}"
-    chmod_destinations dstfiles, true, (e, r) ->
-      errors.push e if e?
-      results.push r.join(' ')
-      console.log "copy:chmod_destinations count #{r.length} err #{e?}"
-      async.map dstdirs,
-        ((key, next) -> cp dstmap[key].join(' '), key, next),
-        (e, r) ->
-          errors.push e if e?
-          console.log "copy:cp count #{r.length} err #{e?}"
-          chmod_destinations dstfiles, false, (e, r) ->
-            errors.push e if e?
-            results.push r.join(' ')
-            console.log "copy:chmod_destinations count #{r.length} err #{e?}"
-            if errors?.length > 0
-              console.error errors
-              console.log results
-            console.log 'copy: finished'
-            cb? errors, results
+    async.map dstdirs,
+      ((key, next) -> cp dstmap[key].join(' '), key, next),
+      (e, r) ->
+        errors.push e if e?
+        results.push r.join(' ')
+        console.log "copy:cp count #{r.length} err #{e?}"
+        if errors?.length > 0
+          console.error errors
+          console.log results
+        console.log 'copy: finished'
+        cb? errors, results
 
 create_destinations = (next) ->
   dstdirs = _.uniq (path.join __dirname, dstDir,
@@ -300,13 +293,11 @@ task 'download', 'Download javascripts to dstExtJavascriptDir', (options, cb) ->
       console.log "download:map curl", e, r
       errors.push e if e?
       results.push r.join(' ')
-      chmod_destinations download_urls, false, (e, r) ->
-        console.log "download: chmod_destinations  count #{r.length} err #{e?}"
-        if errors?.length > 0
-          console.error errors
-          console.log results
-        console.log 'download: finished.'
-        cb? errors, results
+      if errors?.length > 0
+        console.error errors
+        console.log results
+      console.log 'download: finished.'
+      cb? errors, results
 
 gather_compile = () ->
   dstdir = path.join __dirname, dstJavascriptDir
@@ -384,13 +375,13 @@ task 'build', 'Build chrome extension', (options, cb) ->
     'copy'
     ],
     invoke,
-    (error, results) ->
+    (e, r) ->
       errors.push e if e?
       results.push r
-      invoke 'site', (error, results) ->
+      invoke 'site', (e, r) ->
         errors.push e if e?
         results.push r
-        invoke 'test', (error, results) ->
+        invoke 'test', (e, r) ->
           errors.push e if e?
           results.push r
           console.log "#{task}: finished."
