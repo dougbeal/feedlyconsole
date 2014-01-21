@@ -1,13 +1,20 @@
-_console =
-  log: window.console.log.bind window.console
-  debug: window.console.debug.bind window.console
-
+`var Josh = Josh || {}`
+if window?.console?
+  _console = {}
+  _console.log = window.console.log.bind window.console
+  if window.console.debug?
+    _console.debug = window.console.debug.bind window.console
+  else
+    _console.debug = window.console.log.bind window.console
+else
+  _console =
+    log: () ->
+    debug: () ->
 
 _josh_disable_console =
   log: () ->
   debug: () ->
 
-Josh = Josh or {}
 Josh.Debug = true
 Josh.config =
   history: new Josh.History()
@@ -27,8 +34,6 @@ Josh.config.pathhandler = new Josh.PathHandler(Josh.config.shell,
 )
 
 
-
-console.log "[feedlyconsole] loading %O", Josh
 
 demo_data =
   tags: [
@@ -540,11 +545,13 @@ class RootFeedlyNode extends FeedlyNode
           options.error = true
           this.halt()
 
-        (cmd, args, callback) ->
-          #reset parser/state
+        #reset parser/state
+        parser.reset = ->
           options = {}
           parser._halt = false
 
+        (cmd, args, callback) ->
+          parser.reset()
           parser.parse args
           _console.debug "[feedlconsole/info] args %s options %s",
             args.join(' '), JSON.stringify options
@@ -743,7 +750,7 @@ class RootFeedlyNode extends FeedlyNode
       _self.ui.activateAndShow = activateAndShow
       _self.ui.hideAndDeactivate = hideAndDeactivate
 
-    if chrome.runtime?  # running in extension
+    if chrome?.runtime?  # running in extension
       _console.log "[feedlyconsole/init] in extension contex, initializing."
 
       _console.debug "[feedlyconsole/init] mutationHandler installed."
@@ -795,4 +802,4 @@ class RootFeedlyNode extends FeedlyNode
     _self
   )(root, $, _)
 ) this, $, _
-console.log "[feedlyconsole] loaded %O.", Josh
+console.log "[feedlyconsole] loaded Josh version %s.", Josh?.Version

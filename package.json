@@ -4,6 +4,10 @@
     {
         "coffee-script": "latest",
         "async": "latest",
-        "underscore": "latest"
+        "underscore": "latest",
+        "mocha": "latest",
+        "chai": "latest",
+        "zombie": "latest",
+        "json2yaml": "latest"
     }
 }
