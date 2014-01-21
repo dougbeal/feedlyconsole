@@ -1,0 +1,32 @@
+<!doctype html>
+<html xmlns="http://www.w3.org/1999/html">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  <title>{{ site.data.manifest.name }} demo</title>
+
+  <script type="text/javascript">
+    Josh = {Debug: true };
+  </script>
+  {% include js.html %}
+  {% if page.test %}
+  {%   include js_test.html %}
+  {% endif %}
+</head>
+<body>
+  <div id="feedlyconsole">
+{% include feedlyconsole_fragment.html %}
+  </div>
+  <a href="https://github.com/dougbeal/feedlyconsole">{{ site.data.manifest.name }} - feedlyconsole on github</a>
+  <p>
+    <code><pre>
+{% highlight html %}
+{% include js.html %}
+{% if page.test %}
+{%   include js_test.html %}
+{% endif %}
+{% endhighlight %}
+    </pre></code>
+  </p>
+</body>
+</html>
