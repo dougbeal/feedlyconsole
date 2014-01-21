@@ -8,9 +8,9 @@
   <script type="text/javascript">
     Josh = {Debug: true };
   </script>
-  {% include js.html %}
+  {% include dependencies.html %}
   {% if page.test %}
-  {%   include js_test.html %}
+  {%   include test_dependencies.html %}
   {% endif %}
 </head>
 <body>
@@ -21,9 +21,9 @@
   <p>
     <code><pre>
 {% highlight html %}
-{% include js.html %}
+{% include dependencies.html %}
 {% if page.test %}
-{%   include js_test.html %}
+{%   include test_dependencies.html %}
 {% endif %}
 {% endhighlight %}
     </pre></code>
