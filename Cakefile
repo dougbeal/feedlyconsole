@@ -60,7 +60,6 @@ destination_directories_by_ext =
   map: 'javascript/ext'
   css: 'stylesheets'
   json: '.'
-  html: '.'
   png: 'icon'
   coffee: 'src'
 
@@ -93,6 +92,8 @@ for file in manifest
   filename = _.last(file.split('/'))
   if include_filename filename
     filtered_manifest_filenames.push filename
+
+
 
 #  args = [], opts = [], next
 run = (cmd, optional...) ->
@@ -437,9 +438,17 @@ task 'watch', 'Watch prod source files and build changes', (options, cb) ->
   files = src
   [src, dst] = gather_copy()
   files.push.apply files, src
+  # watch jekyll html files
+  for dir in ['.', '_includes']
+    for file in fs.readdirSync dir
+      if path.extname(file) is '.html'
+        files.push path.join dir, file
   console.log "#{task}: #{path.basename file for file in files}."
   for file in files
-    fs.watch file, persistent: true, change
+    try
+      fs.watch file, persistent: true, change
+    catch error
+      console.error file, error
   invoke 'build', build_done
 
 task 'clean', 'Clean out the build directory', (options, cb) ->
