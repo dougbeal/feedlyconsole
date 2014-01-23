@@ -1,18 +1,20 @@
 `var Josh = Josh || {}`
 
-_console_source = null
-_console_source = console unless _console_source?
-_console_source = window.console unless _console_source?
+if console
+  _console = console
+  _console.log "[feedlyconsole] using console."
+else if window.console
+  _console = windows.console
+  _console.log "[feedlyconsole] using window.console."
+else
+  _console =
+    log: () ->
+  _console.log "[feedlyconsole] haha."
 
-_console = {}
-default_bind = _console_source.log?.bind? _console_source
-default_bind = () -> return unless default_bind?
-types = ['debug', 'log', 'warn', 'error', 'dir']
+types = ['debug', 'warn', 'error', 'dir']
 for type in types
-  if _console_source[type]?.bind?
-    _console[type] = _console_source[type].bind _console_source
-  else
-    _console[type] = default_bind
+  unless _console[type]
+    _console[type] = _console.log
 
 _josh_disable_console =
   log: () ->
@@ -135,7 +137,7 @@ class ApiRequest
       ).join("&")
 
   get: (resource, args, callback) ->
-    unless chrome.extension?
+    unless chrome?.extension?
       # not embedded, demo mode
       demo = demo_data[resource]
       status = if demo then 'ok' else 'error'
@@ -558,23 +560,28 @@ class RootFeedlyNode extends FeedlyNode
           parser.parse args
           _console.debug "[feedlconsole/info] args %s options %s",
             args.join(' '), JSON.stringify options
-          nodes = _self.pathhandler.current
+
           if options.help
             return callback _self.shell.templates.options
               help_string: parser.toString() +
               '\n  CMD Specify which node, or all'
           else if options.subcommand
+            nodes = null
             switch options.subcommand
-              when "all" then nodes = FeedlyNode._NODES
-              else nodes = FeedlyNode.getNode options.subcommand, (node) ->
+              when "all"
+                return callback _self.shell.templates.info
+                  nodes: FeedlyNode._NODES
+              else FeedlyNode.getNode options.subcommand, (node) ->
                 if node
                   return callback _self.shell.templates.info {nodes: node}
                 else
                   return callback _self.shell.templates.not_found
                     cmd: 'info'
                     path: options.subcommand
-          return callback _self.shell.templates.info
-            nodes: nodes
+          else
+            return callback _self.shell.templates.info
+              nodes: _self.pathhandler.current
+
       help: "info on current path node"
       completion: Josh.config.pathhandler.pathCompletionHandler
 
@@ -648,7 +655,7 @@ class RootFeedlyNode extends FeedlyNode
       insertCSSLink "stylesheets/feedlyconsole.css"
       feedlyconsole = $("<div/>",
         id: "feedlyconsole"
-      ).load(chrome.extension.getURL(file), ->
+      ).load(chrome?.extension?.getURL(file), ->
         _console.log "[feedlyconsole/init]
  loaded shell ui %s %O readline.attach %O.",
         file, $("#feedlyconsole"), this
