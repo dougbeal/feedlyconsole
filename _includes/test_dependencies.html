@@ -1,1 +1,12 @@
-<b>TEST MODE!!1</b>
+  <link rel="stylesheet" href="{{page.build}}/stylesheets/mocha.css" type='text/css'>
+{% for script in page.node_test_dependencies %}  
+<script  type="text/javascript" src="{{page.build}}/javascript/ext/{{script}}"></script>
+{% endfor %}
+<script type="text/javascript">
+  $(document).ready( function() {
+  mocha.setup('bdd')
+  mocha.checkLeaks();
+  mocha.globals(['jQuery', 'underscore']);
+});
+</script>
+  <script  type="text/javascript" src="{{page.build}}/javascript/feedlyconsole_test.js"></script>

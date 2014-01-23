@@ -8,6 +8,9 @@
         "mocha": "latest",
         "chai": "latest",
         "zombie": "latest",
-        "json2yaml": "latest"
+        "json2yaml": "latest",
+        "optparse": "latest",
+        "mocha-phantomjs": "latest",
+        "phantomjs": "latest"
     }
 }

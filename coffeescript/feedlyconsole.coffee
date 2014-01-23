@@ -1,15 +1,18 @@
 `var Josh = Josh || {}`
-if window?.console?
-  _console = {}
-  _console.log = window.console.log.bind window.console
-  if window.console.debug?
-    _console.debug = window.console.debug.bind window.console
+
+_console_source = null
+_console_source = console unless _console_source?
+_console_source = window.console unless _console_source?
+
+_console = {}
+default_bind = _console_source.log?.bind? _console_source
+default_bind = () -> return unless default_bind?
+types = ['debug', 'log', 'warn', 'error', 'dir']
+for type in types
+  if _console_source[type]?.bind?
+    _console[type] = _console_source[type].bind _console_source
   else
-    _console.debug = window.console.log.bind window.console
-else
-  _console =
-    log: () ->
-    debug: () ->
+    _console[type] = default_bind
 
 _josh_disable_console =
   log: () ->

@@ -3,30 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="chrome=1">
-  <title>{{ site.data.manifest.name }} demo</title>
+  <title>{{ site.data.manifest.name }} {% if page.test %} Mocha Test Page {% else %} Demonsration Page {% endif %}</title>
 
   <script type="text/javascript">
     Josh = {Debug: true };
   </script>
   {% include dependencies.html %}
-  {% if page.test %}
-  {%   include test_dependencies.html %}
+  {% if page.test %}{% include test_dependencies.html %}
   {% endif %}
 </head>
 <body>
   <div id="feedlyconsole">
 {% include feedlyconsole_fragment.html %}
   </div>
+<div>
   <a href="https://github.com/dougbeal/feedlyconsole">{{ site.data.manifest.name }} - feedlyconsole on github</a>
-  <p>
-    <code><pre>
-{% highlight html %}
-{% include dependencies.html %}
-{% if page.test %}
-{%   include test_dependencies.html %}
-{% endif %}
-{% endhighlight %}
-    </pre></code>
-  </p>
+</div>
+<div id='mocha'>
+</div>
 </body>
 </html>

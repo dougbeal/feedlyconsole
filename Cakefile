@@ -6,6 +6,9 @@ path = require 'path'
 async = require 'async'
 _ = require 'underscore'
 
+out = console.log.bind console
+dir = console.dir.bind console
+
 srcCoffeeDir = 'coffeescript'
 dstDir = 'build/chrome-extension'
 dstJavascriptDir = "#{dstDir}/javascript"
@@ -40,6 +43,8 @@ copySearchPath = [
   'chrome-extension/icon'
   ]
 
+github = "https://raw.github.com"
+mocha = "#{github}/visionmedia/mocha/ffaa38d49d10d4a5efd8e8b67db2960c4731cdc3"
 download_urls = [
   "http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.js"
   "http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"
@@ -52,7 +57,10 @@ download_urls = [
   "http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css"
   "https://raw.github.com/jquery/jquery-simulate/master/jquery.simulate.js"
   #"https://raw.github.com/mojombo/tpw/master/css/syntax.css"
-  "https://raw.github.com/madhur/madhur.github.com/master/files/css/syntax.css"
+  "#{github}/madhur/madhur.github.com/master/files/css/syntax.css"
+  "#{github}/chaijs/chai/4b51ea75484eae9225a4330d267f5e231f208ed0/chai.js"
+  "#{mocha}/mocha.js"
+  "#{mocha}/mocha.css"
   ]
 
 destination_directories_by_ext =
@@ -95,20 +103,20 @@ for file in manifest
 
 
 
-#  args = [], opts = [], next
+#  args = [], opts = [], callback
 run = (cmd, optional...) ->
-  # args, opts, next
+  # args, opts, callback
   opts = {}
   args = []
   switch optional.length
     when 3
-      next = optional.pop()
+      callback = optional.pop()
       opts = optional.pop()
       args = optional.pop()
     when 2
       last = optional.pop()
       if typeof last is 'function'
-        next = last
+        callback = last
       else
         opts = last
 
@@ -121,7 +129,7 @@ run = (cmd, optional...) ->
     when 1
       last = optional.pop()
       if typeof last is 'function'
-        next = last
+        callback = last
       else
         if _.isArray last
           args = last
@@ -138,6 +146,7 @@ run = (cmd, optional...) ->
   try
     child = exec cmd_string, opts, (error, stdout, stderr)->
       output = "run:cmd:'#{cmd_string}'"
+      out "trace-" + output if trace
       if opts? and not _.isEmpty(opts)
         output = "#{output} opts:'#{JSON.stringify(opts)}'"
       #output = "#{output} error:'#{error}'" if error?
@@ -145,50 +154,50 @@ run = (cmd, optional...) ->
       if not error? and stderr.length > 0
         # if error is set, stderr is redundant
         output = "#{output}  stderr:'#{stderr.trim()}'"
-      next? error, output
+      return callback? error, output
   catch error
     console.error 'caught error'
     util.error error
-    next? error, output
+    return callback? error, output
 
 #need to run synchronously or at least sequentially
-cp_chmod = (src, dst, next) ->
+cp_chmod = (src, dst, callback) ->
   run 'cp', ["-fv", src, dst], ->
-    run 'chmod', ["-v", "a-w", dst], next
+    run 'chmod', ["-v", "a-w", dst], callback
 
-cp = (src, dst, next) ->
-  run 'cp', ["-fv", src, dst], next
+cp = (src, dst, callback) ->
+  run 'cp', ["-fv", src, dst], callback
 
-cp_obj = (obj, next) ->
-  run 'cp', ["-fv", src, dst], next
+cp_obj = (obj, callback) ->
+  run 'cp', ["-fv", src, dst], callback
 
-mkdir = (path, next) ->
-  run 'mkdir', ["-pv", path], next
+mkdir = (path, callback) ->
+  run 'mkdir', ["-pv", path], callback
 
-nowrite = (dst, next) ->
-  globchmod dst, "a-w", next
+nowrite = (dst, callback) ->
+  globchmod dst, "a-w", callback
 
-write = (dst, next) ->
-  globchmod dst, "u+w", next
+write = (dst, callback) ->
+  globchmod dst, "u+w", callback
 
-globchmod = (dst, mode, next) ->
+globchmod = (dst, mode, callback) ->
   fs.stat dst, (err, stats) ->
     if not err? and stats.isDirectory()
       # implicit glob
-      chmod path.join(dst, '*'), mode, next
+      chmod path.join(dst, '*'), mode, callback
     else
       # could be a file or an explicit glob
-      chmod dst, mode, next
+      chmod dst, mode, callback
 
 
-chmod = (dst, mode, next) ->
-  run 'chmod', ["-v", mode, dst], next
+chmod = (dst, mode, callback) ->
+  run 'chmod', ["-v", mode, dst], callback
 
 get_destination_by_ext = (filepath) ->
   ext = _.last filepath.split('.')
   return path.join __dirname, dstDir, destination_directories_by_ext[ext]
 
-curl = (url, next) ->
+curl = (url, callback) ->
   ext = url.split('.').pop()
   filename = url.split('/').pop()
   dstByType = destination_directories_by_ext[ext]
@@ -197,16 +206,38 @@ curl = (url, next) ->
   fs.exists filepath, (exists) ->
     if exists
       basename = path.basename filepath
-      next? false, "curl: #{basename} exists, not downloading."
+      return callback? null, "curl: #{basename} exists, not downloading."
     else
-      run "curl -sSO \"#{url}\"", cwd: cwd, next
+      return run "curl -sSO \"#{url}\"", cwd: cwd, callback
 
-task 'info2', 'test this', ->
-  invoke 'info'
+option '-v', '--verbose', 'Print out more.'
+option '-t', '--trace', 'Trace task invocation.'
 
-task 'info', 'Print out internal state', ->
-  console.log @name
-  console.log "test filtered_manifest_filenames #{filtered_manifest_filenames}."
+verbose = false
+trace = false
+
+process_options = (options) ->
+  if not verbose and options.verbose
+    out "options: verbose"
+    verbose = options.verbose?
+  if not trace and options.trace
+    out "options: trace"
+    trace = options.trace?
+
+
+
+task 'info2', 'test this', (o, callback)->
+  process_options o
+  dir arguments
+  dir o
+  out "verbose set" if verbose
+  invoke 'info', o, ->
+    out 'info2: back after invoke info'
+
+task 'info', 'Print out internal state', (o) ->
+  out o
+  out @name
+  out "test filtered_manifest_filenames #{filtered_manifest_filenames}."
   run 'ls|wc'
   run 'ls|wc', [], cwd: 'chrome-extension'
   run 'ls', ['foobar'], cwd: 'chrome-extension'
@@ -215,12 +246,12 @@ task 'info', 'Print out internal state', ->
     run 'ls coffeescript'
   run 'ls', ['javascript'], cwd: 'chrome-extension', ->
     run 'ls', ['stylesheets'], cwd: 'chrome-extension', ->
-      run 'pwd', ['stylesheets'], cwd: 'chrome-extension', (err, out) ->
-        console.log out
-  run 'pwd', cwd: dstJavascriptDir, (err, out) ->
-    console.log out
-  run 'ls', cwd: dstJavascriptDir, (err, out) ->
-    console.log out
+      run 'pwd', ['stylesheets'], cwd: 'chrome-extension', (err, output) ->
+        out output
+  run 'pwd', cwd: dstJavascriptDir, (err, output) ->
+    out output
+  run 'ls', cwd: dstJavascriptDir, (err, output) ->
+    out output
 
 gather_copy = () ->
   srcfiles = []
@@ -239,13 +270,13 @@ gather_copy = () ->
   return [srcfiles, dstfiles]
 
 task 'gather_copy', 'List copy files', ->
-  console.log 'manifest', manifest
-  console.log 'download_filenames', download_filenames
-  console.log 'filtered_manifest_filenames', filtered_manifest_filenames
-  console.log 'include_test_files', include_test_files
-  console.log 'gather_copy', gather_copy()
+  out 'manifest', manifest
+  out 'download_filenames', download_filenames
+  out 'filtered_manifest_filenames', filtered_manifest_filenames
+  out 'include_test_files', include_test_files
+  out 'gather_copy', gather_copy()
 
-task 'copy', 'Copy files to build directory.', (options, cb) ->
+task 'copy', 'Copy files to build directory.', (o, callback) ->
   [srcfiles, dstmap] = gather_copy()
   dstdirs = _.keys dstmap
   dstfiles = _.flatten _.values(dstmap), true
@@ -254,26 +285,27 @@ task 'copy', 'Copy files to build directory.', (options, cb) ->
   create_destinations (e, r) ->
     errors.push e if e?
     results.push r.join(' ')
-    console.log "copy:create_destinations count #{r.length} err #{e?}"
+    out "copy:create_destinations count #{r.length} err #{e?}"
     async.map dstdirs,
-      ((key, next) -> cp dstmap[key].join(' '), key, next),
+      ((key, callback) -> cp dstmap[key].join(' '), key, callback),
       (e, r) ->
         errors.push e if e?
         results.push r.join(' ')
-        console.log "copy:cp count #{r.length} err #{e?}"
+        out "copy:cp count #{r.length} err #{e?}"
         if errors?.length > 0
           console.error errors
-          console.log results
-        console.log 'copy: finished'
-        cb? errors, results
+          out results
+        out 'copy: finished'
+        errors = null unless errors.length
+        callback? errors, results
 
-create_destinations = (next) ->
+create_destinations = (callback) ->
   dstdirs = _.uniq (path.join __dirname, dstDir,
   dir for ext, dir of destination_directories_by_ext)
   async.map dstdirs, mkdir, (err, results) ->
-    next? err, dstdirs
+    callback? err, dstdirs
 
-chmod_destinations = (files, write_or_not, next) ->
+chmod_destinations = (files, write_or_not, callback) ->
   target_ext = _.uniq (_.last file.split('.') for file in files)
   chmodglobs = []
   for ext, dir of destination_directories_by_ext when ext in target_ext
@@ -281,24 +313,29 @@ chmod_destinations = (files, write_or_not, next) ->
   chmodglobs = _.uniq chmodglobs
   fn = if write_or_not then write else nowrite
   async.map chmodglobs, fn, (err, results) ->
-    next? err, results
+    callback? err, results
 
-task 'download', 'Download javascripts to dstExtJavascriptDir', (options, cb) ->
+task 'download', 'Download javascripts to dstExtJavascriptDir',
+(options, callback) ->
+  task = @name
   errors = []
   results = []
+  out "#{task}: start."
   create_destinations (e, r) ->
-    console.log "download:create_destinations  count #{r.length} err #{e?}"
+    out "#{task}:create_destinations  count #{r.length} err #{e?}"
     errors.push e if e?
     results.push r.join(' ')
+    out "#{task}:async started"
     async.map download_urls, curl, (e, r) ->
-      console.log "download:map curl", e, r
+      out "#{task}:map curl", e, r
       errors.push e if e?
       results.push r.join(' ')
       if errors?.length > 0
         console.error errors
-        console.log results
-      console.log 'download: finished.'
-      cb? errors, results
+        out results
+      out '#{task}: finished.'
+      errors = null unless errors.length
+      callback? errors, results
 
 gather_compile = () ->
   dstdir = path.join __dirname, dstJavascriptDir
@@ -317,123 +354,131 @@ gather_compile = () ->
   return [srcfiles, dstfiles]
 
 task 'gather_compile', 'List compile files', ->
-  console.log gather_compile()
+  out gather_compile()
 
-patch_map_file = (file, next) ->
+patch_map_file = (file, callback) ->
+  task = 'patch_map_file'
   name = path.basename file
   name = name.split('.')[...-1].join('.')
-  map = JSON.parse fs.readFileSync file
-  map.sourceRoot = ".."
-  map.sources = [
-    "src/#{name}.coffee"
-    ]
-  fs.writeFile file, JSON.stringify(map, null, 2), (e) ->
-    r = "#{file}"
-    r = "error:#{r}" if err?
-    next e, r
+  fs.readFile file, (error, data) ->
+    out "#{task}: readFile #{file} error '#{error}'" if trace
+    return callback? error, r if error
+    map = JSON.parse data
+    map.sourceRoot = ".."
+    map.sources = [
+      "src/#{name}.coffee"
+      ]
+    fs.writeFile file, JSON.stringify(map, null, 2), (error) ->
+      out "#{task}: writeFile #{file} error '#{error}'" if trace
+      r = "#{file}"
+      r = "error:#{r}" if err?
+      return callback? error, r
 
-task 'compile', 'Compile coffeescripts to dstExtJavascriptDir', (options, cb) ->
-  task = 'compile'
+task 'compile', 'Compile coffeescripts to dstExtJavascriptDir',
+(options, callback) ->
+  task = @name
   dstdir = path.join __dirname, dstJavascriptDir
   [srcfiles, dstfiles] = gather_compile()
   errors = []
   results = []
+  out "#{task}: start."
   create_destinations (e, r) ->
-    console.log "#{task}:create_destinations  count #{r.length} err #{e?}"
+    out "#{task}:create_destinations  count #{r.length} err #{e?}"
     errors.push e if e?
     results.push r.join(' ')
     run "coffee #{coffee_options} #{srcfiles.join(' ')}", (e, r) ->
-      console.log "#{task}: #{r}"
+      out "#{task}: #{r}"
       errors.push e if e?
       results.push r
       mapfiles = (file for file in dstfiles when path.extname(file) is '.map')
       async.map mapfiles, patch_map_file, (e, r) ->
-        console.log "#{task}: patched #{r}."
+        out "#{task}: patched #{r}."
         errors.push e if e?
         results.push r
-        console.log( "#{task}: finished." )
-        cb? errors, results
+        out "#{task}: error '#{e}'. results '#{results.length}'" if trace
+        out "#{task}: finished."
+        errors = null unless errors.length
+        callback? errors, results
 
 
-task 'site', 'Build Jekyll _site', (options, cb) ->
+task 'site', 'Build Jekyll _site', (options, callback) ->
   task = @name
   errors = []
   results = []
   run "jekyll build --trace", (e, r) ->
-    console.log "#{task}: #{r}."
+    out "#{task}: #{r}."
     errors.push e if e?
     results.push r
-    console.log( "#{task}: finished." )
-    cb? errors, results
+    out( "#{task}: finished." )
+    errors = null unless errors.length
+    callback? errors, results
 
-task 'build', 'Build chrome extension', (options, cb) ->
+task 'build', 'Build chrome extension', (options, callback) ->
   task = @name
   errors = []
   results = []
+  out "#{task}: starting."
   async.map [
     'compile'
     'download'
-    'copy'
     ],
     invoke,
     (e, r) ->
-      errors.push e if e?
+      out "#{task}: terminated early." if e
+      out "#{task}: parallel done."
+      out "#{task}: error '#{e}'. results '#{results.length}'" if trace
+      errors.push e if e?.length
       results.push r
-      invoke 'site', (e, r) ->
-        errors.push e if e?
+      # copy depends on downloaded files
+      invoke 'copy', (e, r) ->
+        errors.push e if e?.length
+        out "#{task}: error #{e}." if trace
         results.push r
-        invoke 'test', (e, r) ->
-          errors.push e if e?
+        invoke 'site', (e, r) ->
+          errors.push e if e?.length
+          out "#{task}: error #{e}." if trace
           results.push r
-          console.log "#{task}: finished."
-          console.error "#{task}: error", errors if errors?.length > 0
-          cb? errors, results
+          invoke 'test', (e, r) ->
+            errors.push e if e?.length
+            out "#{task}: error #{e}." if trace
+            results.push r
+            out "#{task}: finished."
+            console.error "#{task}: error", errors if errors?.length > 0
+            errors = null unless errors.length
+            callback? errors, results
 
 gather_test = () ->
-  [srcfiles, dstfiles] = gather_compile()
-  testfiles = (file for file in dstfiles when file.indexOf('_test.js') >= 0)
-  return testfiles
+  return [ "_site/test.html" ]
+  #return [ "#{srcCoffeeDir}/launch_phantom_test.coffee" ]
+  #return [ "#{srcCoffeeDir}/launch_zombie_test.coffee" ]
 
-task 'test', 'Run tests', (options, cb) ->
+
+task 'test', 'Run tests', (options, callback) ->
   task = 'test'
   testfiles = gather_test()
   errors = []
   results = []
   mod = "u+x"
   async.map testfiles, (do ->
-    (dest, next) -> return globchmod dest, mod, next),
+    (dest, callback) -> return globchmod dest, mod, callback),
     (e, r) ->
-      console.log "#{task}:globchmod #{mod} count #{r.length} err #{e?}."
+      out "#{task}:globchmod #{mod} count #{r.length} err #{e?}."
       errors.push e if e?
       results.push r
-      run "NODE_PATH=. NODE_DEBUG=t
- mocha #{testfiles.join ' ' }", cwd: dstJavascriptDir,
+      run "node_modules/.bin/mocha-phantomjs
+ #{testfiles.join ' ' }", cwd: __dirname,
       (e, r) ->
         errors.push e if e?
         console.error "#{task}:error", errors if errors?.length > 0
-        console.log "#{task}: ", r
-        console.log "#{task}: finished."
-        cb errors, results
+        out "#{task}: ", r
+        out "#{task}: finished."
+        errors = null unless errors.length
+        callback? errors, results
 
+task 'gather_watch', ->
+  out gather_watch()
 
-task 'watch', 'Watch prod source files and build changes', (options, cb) ->
-  task = 'watch'
-  console.log "#{task}: Watching for changes."
-  _building = true
-  build_done = (err, results) ->
-    _building = false
-    console.error "#{task}: ", err if err
-    console.log "#{task}: ", results if results
-    console.log "#{task}: finished building."
-
-  change = (event, filename) ->
-    console.log "#{task}: #{filename} #{event}"
-    unless _building
-      _building = true
-      invoke 'build', build_done
-    else
-      console.log "#{task}: ignoring file watch, building in progress."
-
+gather_watch = ->
   [src, dst] = gather_compile()
   files = src
   [src, dst] = gather_copy()
@@ -443,16 +488,42 @@ task 'watch', 'Watch prod source files and build changes', (options, cb) ->
     for file in fs.readdirSync dir
       if path.extname(file) is '.html'
         files.push path.join dir, file
-  console.log "#{task}: #{path.basename file for file in files}."
-  for file in files
-    try
-      fs.watch file, persistent: true, change
-    catch error
-      console.error file, error
-  invoke 'build', build_done
+  files.push "_config.yml"
+  files.push.apply files, gather_test()
+  return _.uniq files
 
-task 'clean', 'Clean out the build directory', (options, cb) ->
+task 'watch', 'Watch prod source files and build changes', (o, callback) ->
+  process_options o
+  task = 'watch'
+  out "#{task}: Watching for changes."
+  _building = true
+  build_done = (err, results) ->
+    _building = false
+    console.error "#{task}: ", err if err?.length
+    out "#{task}: ", results if err?.length and results?.length
+    out "#{task}: finished building r:#{results?.length}."
+
+  change = (event, filename) ->
+    out "#{task}: #{filename} #{event}"
+    unless _building
+      _building = true
+      invoke 'build', build_done
+    else
+      out "#{task}: ignoring file watch, building in progress."
+
+  files = gather_watch()
+  out "#{task}: #{path.basename file for file in files}."
+  invoke 'build', build_done ->
+    # wait for build to finish
+    for file in files
+      try
+        fs.watch file, persistent: true, change
+      catch error
+        console.error file, error
+
+
+task 'clean', 'Clean out the build directory', (options, callback) ->
   target = path.join __dirname, dstDir
-  run "rm -rf #{target}", (err, out) ->
+  run "rm -rf #{target}", (err, output) ->
     util.error err if err?
-    console.log 'clean: finished. ', out
+    out 'clean: finished. ', output
