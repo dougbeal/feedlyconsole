@@ -513,13 +513,14 @@ task 'watch', 'Watch prod source files and build changes', (o, callback) ->
 
   files = gather_watch()
   out "#{task}: #{path.basename file for file in files}."
-  invoke 'build', build_done ->
+  invoke 'build', (err, results) ->
     # wait for build to finish
     for file in files
       try
         fs.watch file, persistent: true, change
       catch error
         console.error file, error
+    build_done err, results
 
 
 task 'clean', 'Clean out the build directory', (options, callback) ->
