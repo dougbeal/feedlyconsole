@@ -5,3 +5,6 @@
 	path = cake
 	url = https://github.com/dougbeal/coffee-script.git
 	branch = cake_callback
+[submodule "pretty-json"]
+	path = pretty-json
+	url = https://github.com/dougbeal/pretty-json.git
