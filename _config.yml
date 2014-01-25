@@ -1,4 +1,4 @@
 safe: true
 lsi: false
 pygments: true
-exclude: [ cake, coffeescript, josh.js, node_modules, oldjavascript ]
+exclude: [ cake, coffeescript, josh.js, node_modules, oldjavascript, pretty-json ]
