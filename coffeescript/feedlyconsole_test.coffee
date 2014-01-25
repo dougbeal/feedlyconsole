@@ -198,8 +198,50 @@ $(document).ready ->
       html.should.contain '/'
       html.should.contain 'type'
 
+    it 'cd sync no output',  ->
+      command = 'cd'
+      ia.enter()
+      ia.input 'history --clear'
+      ia.input 'clear'
+      ia.input command
+      children = $('#shell-view').children().get()
+      children.should.have.length 2
+      child = $ children[0]
+      text = child.text()
+      child.text().should.contain command
+      child = $ _.last children
+      oh = child.prop 'outerHTML'
+      oh.should.contain 'prompt'
+      $('#shell-cli').text().should.not.contain "Unrecognized command:"
+
+    it 'clear sync no output', ->
+      command = 'clear'
+      ia.enter()
+      ia.input 'history --clear'
+      ia.input 'clear'
+      ia.input command
+      children = $('#shell-view').children().get()
+      children.should.have.length 1
+      child = $ _.last children
+      oh = child.prop 'outerHTML'
+      oh.should.contain 'prompt'
+      $('#shell-cli').text().should.not.contain "Unrecognized command:"
+
+    verify_command_with_output = (command, children) ->
+      children.should.have.length.at.least 3
+      child = $ children[0]
+      text = child.text()
+      child.text().should.contain command
+      child = $ children[1]
+      text = child.text()
+      child.text().should.not.be.empty
+      child = $ _.last children
+      oh = child.prop 'outerHTML'
+      oh.should.contain 'prompt'
+      $('#shell-cli').text().should.not.contain "Unrecognized command:"
+
     for command in cli_sync_commands_with_output
-      it "#{command} produces sync output", do (command) -> ->
+      it "#{command} sync with output", do (command) -> ->
         ia.enter()
         ia.input 'history --clear'
         ia.input 'clear'
@@ -209,11 +251,11 @@ $(document).ready ->
           child = $ child
           console.log "##{i} outer:", child.prop('outerHTML'), " text:",
           child.text()
-        children.should.have.length.at.least 2
+        verify_command_with_output command, children
 
     for command in cli_async_commands
       it "#{command} produces async output", do (command) -> (done) ->
-        @timeout 500
+        @timeout 250
         start = Date.now()
         ia.enter()
         ia.input 'history --clear'
@@ -228,11 +270,13 @@ $(document).ready ->
  render count #{count}."
           if count > 1
             children = $('#shell-view').children().get()
+            ###
             for child,i in children
               child = $ child
               console.log "##{i} outer:", child.prop('outerHTML'), " text:",
               child.text()
-            children.should.have.length.at.least 2
+            ###
+            verify_command_with_output command, children
             console.log "[feedlyconsole/test/#{command}:#{Date.now()-start}]
  ending callback at count #{count}."
             render_callback = ->
