@@ -22,6 +22,7 @@ class @InputAdapter
     $('#shell-view .input .left').map (i,v) -> $(v).text()
 
 render_callback = ->
+should = chai.should()
 
 # wrap Josh.config.shell.render
 Josh.config.shell.render = do () ->
@@ -52,6 +53,82 @@ cli_sync_commands_with_output = _.difference cli_sync_commands,
   cli_commands_no_output
 console.log 'cli_sync_commands:', cli_sync_commands
 console.log 'cli_sync_commands_with_output:', cli_sync_commands_with_output
+
+
+verify_cd_no_output = (children=null) ->
+  console.log "verify_cd_no_output"
+  command = "cd"
+  children = $('#shell-view').children().get() unless children?
+  for child,i in children
+    child = $ child
+    console.log "##{i} outer:", child.prop('outerHTML'), " text:",
+    child.text()
+  children.should.have.length.at.least 2
+  l = children.length
+  children.reverse()
+  next = 0
+  console.log "prompt at #{l-next-1}"
+  child = $ children[next]
+  prop = child.prop 'outerHTML'
+  should.exist prop
+  prop.should.contain 'prompt'
+  prop = child.prop 'id'
+  should.exist prop
+  prop.should.equal 'shell-cli'
+  next++
+
+  #command or error on output
+  console.log "command at #{l-next-1}"
+  child = $ children[next]
+  text = child.text()
+  prop = child.prop 'outerHTML'
+  should.exist prop
+  prop.should.contain 'prompt'
+  text.should.not.contain "Unrecognized command:"
+  text.should.not.contain "No such directory"
+  text.should.contain command
+
+verify_command_with_output = (command, children=null) ->
+  children = $('#shell-view').children().get() unless children?
+  children.should.have.length.at.least 3
+  l = children.length
+  children.reverse()
+
+  next = 0
+  console.log "prompt at #{l-next-1}"
+  child = $ children[next]
+  prop = child.prop 'outerHTML'
+  should.exist prop
+  prop.should.contain 'prompt'
+  prop = child.prop 'id'
+  should.exist prop
+  prop.should.equal 'shell-cli'
+  next++
+
+  # is there a clear?
+  child = $ children[next]
+  prop = child.prop 'class'
+  if prop? and prop is 'clear'
+    console.log "clear at #{l-next-1}"
+    children.should.have.length.at.least 3
+    next++
+
+  # command output
+  console.log "output at #{l-next-1}"
+  child = $ children[next]
+  text = child.text()
+  text.should.not.be.empty
+  next++
+
+  #command
+  console.log "command at #{l-next-1}"
+  child = $ children[next]
+  text = child.text()
+  prop = child.prop 'outerHTML'
+  should.exist prop
+  prop.should.contain 'prompt'
+  text.should.not.contain "Unrecognized command:"
+  text.should.contain command
 
 
 $(document).ready ->
@@ -193,7 +270,7 @@ $(document).ready ->
       child = $ children[1]
       html = child.prop 'outerHTML'
       #console.log html
-      child.prop('class').should.equal 'node'
+      child.prop('class').should.contain 'node'
       html.should.contain('name')
       html.should.contain '/'
       html.should.contain 'type'
@@ -204,15 +281,16 @@ $(document).ready ->
       ia.input 'history --clear'
       ia.input 'clear'
       ia.input command
-      children = $('#shell-view').children().get()
-      children.should.have.length 2
-      child = $ children[0]
-      text = child.text()
-      child.text().should.contain command
-      child = $ _.last children
-      oh = child.prop 'outerHTML'
-      oh.should.contain 'prompt'
-      $('#shell-cli').text().should.not.contain "Unrecognized command:"
+      verify_cd_no_output()
+
+    it 'invalid cd sync no output',  ->
+      command = 'cd foobar'
+      ia.enter()
+      ia.input 'history --clear'
+      ia.input 'clear'
+      ia.input command
+      verify_cd_no_output.should.throw chai.AssertionError
+
 
     it 'clear sync no output', ->
       command = 'clear'
@@ -227,22 +305,12 @@ $(document).ready ->
       oh.should.contain 'prompt'
       $('#shell-cli').text().should.not.contain "Unrecognized command:"
 
-    verify_command_with_output = (command, children) ->
-      children.should.have.length.at.least 3
-      child = $ children[0]
-      text = child.text()
-      child.text().should.contain command
-      child = $ children[1]
-      text = child.text()
-      child.text().should.not.be.empty
-      child = $ _.last children
-      oh = child.prop 'outerHTML'
-      oh.should.contain 'prompt'
-      $('#shell-cli').text().should.not.contain "Unrecognized command:"
+
 
     for command in cli_sync_commands_with_output
       it "#{command} sync with output", do (command) -> ->
         ia.enter()
+        ia.input 'cd /'
         ia.input 'history --clear'
         ia.input 'clear'
         ia.input command
@@ -307,11 +375,52 @@ $(document).ready ->
       child.prop('id').should.equal 'shell-cli'
       child = $ children[1]
       html = child.prop 'outerHTML'
-      child.prop('class').should.equal 'node'
+      child.prop('class').should.contain 'node'
       html.should.contain 'name'
       html.should.contain path
       html.should.contain 'type'
       html.should.contain 'json_data'
+
+  describe 'series of commands in shell-panel', ->
+    ia = new InputAdapter $('#shell-panel')
+
+    it "cd tags;cd tech", (done) ->
+      FeedlyNode.reset()
+      @timeout 250
+      start = Date.now()
+      count = 0
+      callback = ->
+        count = count + 1
+        console.log "[feedlyconsole/test/#{@name}:#{Date.now()-start}]
+render count #{count}."
+        if count > 1
+          children = $('#shell-view').children().get()
+          for child,i in children
+            child = $ child
+            console.log "##{i} outer:", child.prop('outerHTML'), " text:",
+            child.text()
+          verify_command_with_output 'ls', children
+          console.log "[feedlyconsole/test/#{@name}:#{Date.now()-start}]
+ending callback at count #{count}."
+          render_callback = ->
+          done()
+
+      console.log "[feedlyconsole/test/#{@name}:#{Date.now()-start}]
+before callback count #{count}."
+      ia.enter()
+      ia.input 'cd /'
+      ia.input 'history --clear'
+      ia.input 'clear'
+      ia.input 'cd tags'
+      verify_cd_no_output()
+      ia.input 'cd tech'
+      verify_cd_no_output()
+      ia.input 'ls', false
+      render_callback = callback
+      ia.enter()
+
+
+
 
 
   $(window).load ->

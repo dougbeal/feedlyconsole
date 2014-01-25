@@ -122,6 +122,8 @@ www.yatzer.com/feed/index.php/hideReadArticlesFilter": "off"
     "category/photography/entryOverviewSize": "6"
     "subscription/feed/http://
 feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
+  streams:
+    ""
 
 FEEDLY_API_VERSION = "v3"
 
@@ -137,6 +139,7 @@ class ApiRequest
       ).join("&")
 
   get: (resource, args, callback) ->
+    _console.debug "[feedlyconsole/apirequest] fetching %s.", resource
     unless chrome?.extension?
       # not embedded, demo mode
       demo = demo_data[resource]
@@ -148,10 +151,12 @@ class ApiRequest
       callback demo, status, null
     else
       url = [ @url, resource ].join('/') + @_url_parameters args
-      _console.debug "[feedlyconsole/apirequest] fetching %s at %s.", resource, url
+      _console.debug "[feedlyconsole/apirequest]
+ fetching %s at %s.", resource, url
       request = @build_request url
       $.ajax(request).always (response, status, xhr) ->
-        _console.debug "[feedlyconsole/apirequest] '%s' status '%s' response %O xhr %O.",
+        _console.debug "[feedlyconsole/apirequest]
+ '%s' status '%s' response %O xhr %O.",
           resource, status, response, xhr
         return callback response, status, xhr
 
@@ -184,7 +189,11 @@ class FeedlyApiRequest extends ApiRequest
     return _.find @resources, (str) -> resource.indexOf(str) is 0
 
   get: (resource, args, callback) ->
-    return callback null, 'error', null unless @validate_resource resource, args
+    _console.debug "[feedlyconsole/feedlyapirequest] validating %s.", resource
+    unless @validate_resource resource, args
+      _console.debug "[feedlyconsole/apirequest] failed to validate %s (%s).",
+      resource, args
+      return callback null, 'error', null
     return super resource, args, (response, status, xhr) ->
       if response? and not status?
         # Every response from the API includes rate limiting
@@ -234,6 +243,11 @@ class FeedlyNode
     FeedlyNode._NODES[@path] = @
     @type ?= 'node'
     _console.debug "[feedlyconsole/FeedlyNode] new '%s' %O.", @path, @
+
+  @reset: ->
+    @_NODES = {}
+    @_ROOT_NODE = null
+    @_NODES[@_ROOT_PATH] = null
 
   @_initRootNode: =>
     @_ROOT_NODE ?= new RootFeedlyNode()
@@ -341,6 +355,8 @@ class FeedlyNode
 
   makeJSONNodes: (json) ->
     json ?= @json_data
+    unless json?
+      return []
     json = json.items if 'items' of json
     if _.isArray(json)
       nodes = _.map json, (item) =>
@@ -429,10 +445,7 @@ class RootFeedlyNode extends FeedlyNode
     </strong>
     """
 
-    # **templates.default_template**
-    # Use when specific template doesn't exist
-    _self.shell.templates.default_template = _.template """
-    <div><%= JSON.stringify(data) %></div>"""
+
 
     # **templates.ls**
     # Override of the pathhandler ls template to create a multi-column listing.
@@ -485,10 +498,43 @@ class RootFeedlyNode extends FeedlyNode
           <td><%=profile.fullName %></td></tr>
       </table></div>"""
 
-    _self.shell.templates.info = _.template """
-    <div class='node'><code>
-      <pre><%= JSON.stringify(nodes, null, 2) %></pre>
-    </code></div>"""
+    _self.node_pretty_json = 'node-pretty-json-'
+    _self.node_pretty_json_count = 0
+
+    window.swap_node_pretty_json = (old_node, new_node) ->
+      console.debug "[feedlyconsole] swap "
+      o = $ "##{old_node}"
+      n = $ "##{new_node}"
+      l = o.parent()
+      n.after o
+      l.append n
+
+    _self.shell.templates.json = do ->
+      _json = _.template """
+      <span class='node node-pretty-json' id='<%= new_id %>'></span>
+      <script id='script_<%= new_id %>'>
+        window.swap_node_pretty_json( '<%= old_id %>', '<%= new_id %>' );
+        $("#script_<%= new_id %>").remove();
+      </script>
+                """
+      (obj) ->
+        # use previously created span
+        #
+        count = _self.node_pretty_json_count
+        prefix = _self.node_pretty_json
+        obj.old_id = "#{prefix}#{count}"
+        _self.node_pretty_json_count = ++count
+        obj.new_id = "#{prefix}#{count}"
+        options =
+          el: "##{obj.old_id}"
+          data: obj.data
+
+        new PrettyJSON.view.Node options
+        return _json obj
+
+    # **templates.default_template**
+    # Use when specific template doesn't exist
+    _self.shell.templates.default_template = _self.shell.templates.json
 
     # Adding Commands to the Console
     # ==============================
@@ -569,18 +615,18 @@ class RootFeedlyNode extends FeedlyNode
             nodes = null
             switch options.subcommand
               when "all"
-                return callback _self.shell.templates.info
-                  nodes: FeedlyNode._NODES
+                return callback _self.shell.templates.json
+                  data: FeedlyNode._NODES
               else FeedlyNode.getNode options.subcommand, (node) ->
                 if node
-                  return callback _self.shell.templates.info {nodes: node}
+                  return callback _self.shell.templates.json {data: node}
                 else
                   return callback _self.shell.templates.not_found
                     cmd: 'info'
                     path: options.subcommand
           else
-            return callback _self.shell.templates.info
-              nodes: _self.pathhandler.current
+            return callback _self.shell.templates.json
+              data: _self.pathhandler.current
 
       help: "info on current path node"
       completion: Josh.config.pathhandler.pathCompletionHandler
@@ -649,18 +695,24 @@ class RootFeedlyNode extends FeedlyNode
       _self.observer.disconnect() if _self.observer?
       file = "feedlyconsole.html"
       _console.debug "[feedlyconsole/init] injecting shell ui from %s.", file
-      #insertCSSLink "stylesheets/styles.css"
-      #insertCSSLink("stylesheets/source-code-pro.css");
+
       insertCSSLink "stylesheets/jquery-ui.css"
       insertCSSLink "stylesheets/feedlyconsole.css"
+      insertCSSLink "stylesheets/pretty-json.css"
+
       feedlyconsole = $("<div/>",
         id: "feedlyconsole"
-      ).load(chrome?.extension?.getURL(file), ->
-        _console.log "[feedlyconsole/init]
- loaded shell ui %s %O readline.attach %O.",
-        file, $("#feedlyconsole"), this
-        Josh.config.readline.attach $("#shell-panel").get(0)
-        initializeUI()
+      ).load(chrome?.extension?.getURL(file), (resp, status, xmlrq) ->
+        if status is 'error'
+          _console.error "[feedlyconsole/init] failed to load #{file},
+ init failed."
+        else
+          _console.log "[feedlyconsole/init]
+ loaded shell ui %s %O readline.attach %O. status %s",
+            file, $("#feedlyconsole"), this, status
+
+          Josh.config.readline.attach $("#shell-panel").get(0)
+          initializeUI()
       )
       $("body").prepend feedlyconsole
 
