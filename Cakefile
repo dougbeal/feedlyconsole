@@ -20,10 +20,15 @@ if idx is -1
 invoke.toString().should.contain callback_fn_args
 
 srcCoffeeDir = 'coffeescript'
-dstDir = 'build/chrome-extension'
-dstJavascriptDir = "#{dstDir}/javascript"
-dstExtJavascriptDir = "#{dstJavascriptDir}/ext"
+dstDir = path.join 'build', 'chrome-extension'
+dstJavascriptDir = path.join dstDir, 'javascript'
+dstExtJavascriptDir = path.join dstJavascriptDir, 'ext'
+site_directory = "_site"
+site_extension_directory = path.join site_directory, 'build', 'chrome-extension'
 
+extension_html_files = [
+  'feedlyconsole.html'
+  ]
 coffeeFiles = [
   'feedlyconsole.coffee'
   'feedlyconsole_test.coffee'
@@ -37,11 +42,15 @@ coffee_options = "--bare --output #{dstJavascriptDir} --map --compile"
 
 compile_files =
   'chrome-extension/manifest.json': '_data/manifest.yaml'
+  'pretty-json/src/node.js': 'pretty-json-min.js'
 
 compile =
   'json':
     'yaml': (src, dst) ->
       "node_modules/.bin/json2yaml '#{src}' > '#{dst}'"
+  'js':
+    'js': (src, dst) ->
+      "cd pretty-json/build && python build.py"
 
 
 
@@ -49,12 +58,15 @@ copySearchPath = [
   'coffeescript'
   'josh.js/js'
   'josh.js/ext/optparse-js/lib'
+  'pretty-json/build'
+  'pretty-json/css'
   'chrome-extension'
   'chrome-extension/icon'
   ]
 
 github = "https://raw.github.com"
 mocha = "#{github}/visionmedia/mocha/ffaa38d49d10d4a5efd8e8b67db2960c4731cdc3"
+backbone = "http://cdnjs.cloudflare.com/ajax/libs/backbone.js/0.9.10"
 download_urls = [
   "http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.js"
   "http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"
@@ -65,12 +77,15 @@ download_urls = [
   "http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.5.2/underscore-min.map"
   "http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.5.2/underscore.js"
   "http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css"
-  "https://raw.github.com/jquery/jquery-simulate/master/jquery.simulate.js"
-  #"https://raw.github.com/mojombo/tpw/master/css/syntax.css"
+  "#{github}/jquery/jquery-simulate/master/jquery.simulate.js"
   "#{github}/madhur/madhur.github.com/master/files/css/syntax.css"
   "#{github}/chaijs/chai/4b51ea75484eae9225a4330d267f5e231f208ed0/chai.js"
+  #"#{github}/caolan/async/847929ccd566fc8c57ed6743f279d6bc90e75366/lib/async.js"
   "#{mocha}/mocha.js"
   "#{mocha}/mocha.css"
+  "#{backbone}/backbone-min.js"
+  "#{backbone}/backbone-min.map"
+  "#{backbone}/backbone.js"
   ]
 
 destination_directories_by_ext =
@@ -245,6 +260,7 @@ task 'info2', 'test this', (o, callback)->
     out 'info2: back after invoke info'
 
 task 'info', 'Print out internal state', (o) ->
+  process_options o
   out o
   out @name
   out "test filtered_manifest_filenames #{filtered_manifest_filenames}."
@@ -286,7 +302,8 @@ task 'gather_copy', 'List copy files', ->
   out 'include_test_files', include_test_files
   out 'gather_copy', gather_copy()
 
-task 'copy', 'Copy files to build directory.', (o, callback) ->
+task 'copy', 'Copy files to build directory.', (options, callback) ->
+  process_options options
   [srcfiles, dstmap] = gather_copy()
   dstdirs = _.keys dstmap
   dstfiles = _.flatten _.values(dstmap), true
@@ -327,6 +344,7 @@ chmod_destinations = (files, write_or_not, callback) ->
 
 task 'download', 'Download javascripts to dstExtJavascriptDir',
 (options, callback) ->
+  process_options options
   task = @name
   errors = []
   results = []
@@ -386,6 +404,7 @@ patch_map_file = (file, callback) ->
 
 task 'compile', 'Compile coffeescripts to dstExtJavascriptDir',
 (options, callback) ->
+  process_options options
   task = @name
   dstdir = path.join __dirname, dstJavascriptDir
   [srcfiles, dstfiles] = gather_compile()
@@ -400,18 +419,33 @@ task 'compile', 'Compile coffeescripts to dstExtJavascriptDir',
       out "#{task}: #{r}"
       errors.push e if e?
       results.push r
-      mapfiles = (file for file in dstfiles when path.extname(file) is '.map')
-      async.map mapfiles, patch_map_file, (e, r) ->
-        out "#{task}: patched #{r}."
+      work = []
+      for src, dst of compile_files
+        work.push do (src, dst) ->
+          src_ext = path.extname(src).replace '.', ''
+          dst_ext = path.extname(dst).replace '.', ''
+          cmd = compile[src_ext][dst_ext] src, dst
+          out "#{task}: add other #{src} -> #{dst} as #{cmd}" if trace
+          (callback) ->
+            run cmd, callback
+      async.parallel work, (e, r) ->
+        out "#{task}: other finished #{r.length}"
         errors.push e if e?
         results.push r
         out "#{task}: error '#{e}'. results '#{results.length}'" if trace
-        out "#{task}: finished."
-        errors = null unless errors.length
-        callback? errors, results
+        mapfiles = (file for file in dstfiles when path.extname(file) is '.map')
+        async.map mapfiles, patch_map_file, (e, r) ->
+          out "#{task}: patched #{r}."
+          errors.push e if e?
+          results.push r
+          out "#{task}: error '#{e}'. results '#{results.length}'" if trace
+          out "#{task}: finished."
+          errors = null unless errors.length
+          callback? errors, results
 
 
 task 'site', 'Build Jekyll _site', (options, callback) ->
+  process_options options
   task = @name
   errors = []
   results = []
@@ -419,11 +453,20 @@ task 'site', 'Build Jekyll _site', (options, callback) ->
     out "#{task}: #{r}."
     errors.push e if e?
     results.push r
-    out( "#{task}: finished." )
-    errors = null unless errors.length
-    callback? errors, results
+    rel = path.relative site_directory, site_extension_directory
+    run "cp -fv #{extension_html_files.join ' '} #{rel}",
+      cwd: site_directory,
+      (e, r) ->
+        out "#{task}: #{r}."
+        errors.push e if e?
+        results.push r
+        out "#{task}: error '#{errors}'. results '#{results}'" if trace
+        out "#{task}: finished."
+        errors = null unless errors.length
+        callback? errors, results
 
 task 'build', 'Build chrome extension', (options, callback) ->
+  process_options options
   task = @name
   errors = []
   results = []
@@ -464,6 +507,7 @@ gather_test = () ->
 
 
 task 'test', 'Run tests', (options, callback) ->
+  process_options options
   task = 'test'
   testfiles = gather_test()
   errors = []
@@ -500,10 +544,12 @@ gather_watch = ->
         files.push path.join dir, file
   files.push "_config.yml"
   files.push.apply files, gather_test()
+  files.push.apply files, _.keys compile_files
   return _.uniq files
 
-task 'watch', 'Watch prod source files and build changes', (o, callback) ->
-  process_options o
+task 'watch', 'Watch prod source files and build changes',
+(options, callback) ->
+  process_options options
   task = 'watch'
   out "#{task}: Watching for changes."
   _building = true
@@ -534,6 +580,7 @@ task 'watch', 'Watch prod source files and build changes', (o, callback) ->
 
 
 task 'clean', 'Clean out the build directory', (options, callback) ->
+  process_options options
   target = path.join __dirname, dstDir
   run "rm -rf #{target}", (err, output) ->
     util.error err if err?

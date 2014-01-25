@@ -34,6 +34,8 @@
                 "javascript/ext/shell.js",
                 "javascript/ext/pathhandler.js",
                 "javascript/ext/optparse.js",
+                "javascript/ext/backbone-min.js",
+                "javascript/ext/pretty-json-min.js",
                 "javascript/feedlyconsole.js"
             ],
             "all_frames": false
@@ -54,7 +56,8 @@
         "src/background.coffee",
         "src/feedlyconsole.coffee",
         "stylesheets/feedlyconsole.css", 
-        "stylesheets/jquery-ui.css"
+        "stylesheets/jquery-ui.css",
+        "stylesheets/pretty-json.css"
     ],
     "page_action": {
         "default_title": "Feedly Console",
