@@ -5,9 +5,19 @@ util = require 'util'
 path = require 'path'
 async = require 'async'
 _ = require 'underscore'
+chai = require 'chai'
+should = chai.should()
 
 out = console.log.bind console
 dir = console.dir.bind console
+
+# if global cake is called, patch up invoke with local copy
+callback_fn_args = "(name, cb)"
+idx = invoke.toString().indexOf callback_fn_args
+if idx is -1
+  lib  = path.join(path.dirname(fs.realpathSync(__filename)), 'cake/lib')
+  require lib + '/coffee-script/cake'
+invoke.toString().should.contain callback_fn_args
 
 srcCoffeeDir = 'coffeescript'
 dstDir = 'build/chrome-extension'
@@ -333,7 +343,7 @@ task 'download', 'Download javascripts to dstExtJavascriptDir',
       if errors?.length > 0
         console.error errors
         out results
-      out '#{task}: finished.'
+      out "#{task}: finished."
       errors = null unless errors.length
       callback? errors, results
 
