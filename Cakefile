@@ -42,7 +42,7 @@ coffee_options = "--bare --output #{dstJavascriptDir} --map --compile"
 
 compile_files =
   'chrome-extension/manifest.json': '_data/manifest.yaml'
-  'pretty-json/src/node.js': 'pretty-json-min.js'
+  'pretty-json/src/node.js': 'pretty-json/build/pretty-json-min.js'
 
 compile =
   'json':
@@ -326,9 +326,15 @@ task 'copy', 'Copy files to build directory.', (options, callback) ->
         errors = null unless errors.length
         callback? errors, results
 
-create_destinations = (callback) ->
-  dstdirs = _.uniq (path.join __dirname, dstDir,
+gather_destinations = ->
+  dstdirs = (path.join __dirname, dstDir,
   dir for ext, dir of destination_directories_by_ext)
+  for file in _.values compile_files
+    dstdirs.push path.join __dirname, path.dirname(file)
+  return dstdirs
+    
+create_destinations = (callback) ->
+  dstdirs = gather_destinations()
   async.map dstdirs, mkdir, (err, results) ->
     callback? err, dstdirs
 
@@ -382,6 +388,7 @@ gather_compile = () ->
   return [srcfiles, dstfiles]
 
 task 'gather_compile', 'List compile files', ->
+  out gather_destinations()
   out gather_compile()
 
 patch_map_file = (file, callback) ->
