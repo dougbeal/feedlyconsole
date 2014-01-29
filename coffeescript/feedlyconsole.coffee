@@ -116,12 +116,12 @@ demo_data =
     autoMarkAsReadOnSelect: "50"
     "category/reviews/entryOverviewSize": "0"
     "subscription/feed/http://
-feeds.engadget.com/weblogsinc/engadget/entryOverviewSize": "4"
+      feeds.engadget.com/weblogsinc/engadget/entryOverviewSize": "4"
     "subscription/feed/http://
-www.yatzer.com/feed/index.php/hideReadArticlesFilter": "off"
+      www.yatzer.com/feed/index.php/hideReadArticlesFilter": "off"
     "category/photography/entryOverviewSize": "6"
     "subscription/feed/http://
-feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
+      feeds.feedburner.com/venturebeat/entryOverviewSize.mobile": "1"
   streams:
     ""
 
@@ -206,8 +206,8 @@ class FeedlyApiRequest extends ApiRequest
           limit: parseInt xhr.getResponseHeader("X-RateLimit-Limit")
           authenticated: xhr.getResponseHeader("Authenticated") is "true"
 
-        $("#ratelimit").html _self
-        .shell.templates.rateLimitTemplate(ratelimit)
+        $("#ratelimit").html _self.shell.templates
+          .rateLimitTemplate(ratelimit)
         if ratelimit.remaining is 0
           alert "Whoops, you've hit the rate limit."
           _self.shell.deactivate()
@@ -314,7 +314,7 @@ class FeedlyNode
       name = _.last parts
       @getNode parent_path, (parent) =>
         _console.debug "[feedlyconsole/FeedlyNode.call_api_by_path]
- parent %O @ %s.", parent, parent_path
+          parent %O @ %s.", parent, parent_path
         id = parent.getChildId(name)
         return callback("", "error") unless id?
         encoded_id = encodeURIComponent id
@@ -635,10 +635,9 @@ class RootFeedlyNode extends FeedlyNode
 
     # This attaches a custom prompt render to the shell.
     _self.shell.onNewPrompt (callback) ->
-      callback _self.shell.templates.prompt(
+      callback _self.shell.templates.prompt
         self: _self
         node: _self.pathhandler.current
-      )
 
     ###
     # Wiring up PathHandler
@@ -705,10 +704,11 @@ class RootFeedlyNode extends FeedlyNode
       ).load(chrome?.extension?.getURL(file), (resp, status, xmlrq) ->
         if status is 'error'
           _console.error "[feedlyconsole/init] failed to load #{file},
- init failed."
+           init failed."
         else
           _console.log "[feedlyconsole/init]
- loaded shell ui %s %O readline.attach %O. status %s",
+
+            loaded shell ui %s %O readline.attach %O. status %s",
             file, $("#feedlyconsole"), this, status
 
           Josh.config.readline.attach $("#shell-panel").get(0)
@@ -751,7 +751,7 @@ class RootFeedlyNode extends FeedlyNode
           page = name is "_pageid" and value.indexOf("rot2") isnt -1
           if not _found and (wide or page or narrow)
             _console.debug "[feedlyconsole/init/observer]
- mutation observer end %O", _self.observer
+              mutation observer end %O", _self.observer
             _found = true
             doInsertShellUI()
 
@@ -835,7 +835,7 @@ class RootFeedlyNode extends FeedlyNode
             url_array = request.url.split "/"
             url = url_array[0] + "//" + url_array[2]
             _console.debug "[feedlyconsole/msg/cookie_feedlytoken]
- api init, url: %s oauth: %s.",
+              api init, url: %s oauth: %s.",
               url,
               oauth.slice 0, 8
             _self.api = new FeedlyApiRequest(url,
@@ -845,7 +845,8 @@ class RootFeedlyNode extends FeedlyNode
             oauth = request.feedlytoken.slice 0, 8
             url = request.url
             _console.debug "[feedlyconsole/msg/cookie_feedlytoken]
- ignoring, api, url (%s), oauth (%s) already initialized.", url, oauth
+              ignoring, api, url (%s), oauth (%s) already
+              initialized.", url, oauth
 
         else
           _console.debug "[feedlyconsole/msg] unknown action %s request %O.",
