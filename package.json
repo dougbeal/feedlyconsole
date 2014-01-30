@@ -2,7 +2,7 @@
     "name":           "feedlyconsole",
     "devDependencies": 
     {
-        "coffee-script": "latest",
+        "coffee-script": "1.7.0",
         "async": "latest",
         "underscore": "latest",
         "mocha": "latest",
