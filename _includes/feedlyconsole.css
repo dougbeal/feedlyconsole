@@ -1,7 +1,3 @@
----
-build: build/chrome-extension
-build: chrome-extension://__MSG_@@extension_id__
----
 div.feedlyconsole_icon {
     content:url({{page.build}}/icon/utilities-terminal-5_19.png);
 }

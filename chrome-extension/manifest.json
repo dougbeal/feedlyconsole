@@ -57,7 +57,8 @@
         "src/feedlyconsole.coffee",
         "stylesheets/feedlyconsole.css", 
         "stylesheets/jquery-ui.css",
-        "stylesheets/pretty-json.css"
+        "stylesheets/pretty-json.css",
+        "icon/utilities-terminal-5_19.png"
     ],
     "page_action": {
         "default_title": "Feedly Console",

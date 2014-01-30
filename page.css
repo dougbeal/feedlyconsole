@@ -1,0 +1,4 @@
+---
+build: build/chrome-extension
+---
+{% include feedlyconsole.css %}

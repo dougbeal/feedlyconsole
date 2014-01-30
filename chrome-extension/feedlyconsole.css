@@ -1,0 +1,4 @@
+---
+build: chrome-extension://__MSG_@@extension_id__
+---
+{% include feedlyconsole.css %}
