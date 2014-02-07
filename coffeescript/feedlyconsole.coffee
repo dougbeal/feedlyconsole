@@ -577,6 +577,60 @@ class RootFeedlyNode extends FeedlyNode
 
     _self.root_commands.tags.help = "help here"
 
+    addCommandHandler 'dump'
+    ,
+      exec: do ->
+        options = {}
+        parser = new optparse.OptionParser [
+          ['-h', '--help', "Command help"]]
+
+        parser.on "help", ->
+          options.help = true
+          this.halt()
+
+        parser.on 0, (subcommand)->
+          options.subcommand = subcommand
+          this.halt()
+
+        parser.on '*', ->
+          options.error = true
+          this.halt()
+
+        #reset parser/state
+        parser.reset = ->
+          options = {}
+          parser._halt = false
+
+        (cmd, args, callback) ->
+          parser.reset()
+          parser.parse args
+          _console.debug "[feedlconsole/info] args %s options %s",
+            args.join(' '), JSON.stringify options
+
+          if options.help
+            return callback _self.shell.templates.options
+              help_string: parser.toString() +
+              '\n  CMD Specify which node, or all'
+          else if options.subcommand
+            nodes = null
+            switch options.subcommand
+              when "all"
+                return callback _self.shell.templates.json
+                  data: FeedlyNode._NODES
+              else FeedlyNode.getNode options.subcommand, (node) ->
+                if node
+                  return callback _self.shell.templates.json {data: node}
+                else
+                  return callback _self.shell.templates.not_found
+                    cmd: 'info'
+                    path: options.subcommand
+          else
+            return callback _self.shell.templates.json
+              data: _self.pathhandler.current
+
+      help: "dump api results as json"
+      completion: Josh.config.pathhandler.pathCompletionHandler
+
     addCommandHandler 'info'
     ,
       exec: do ->
